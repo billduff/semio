@@ -1,0 +1,691 @@
+\documentclass[11pt]{article}
+\usepackage{fullpage}
+\usepackage{latexsym}
+\usepackage{verbatim}
+\usepackage{amsthm,amssymb,amsmath,stmaryrd}
+\usepackage{ifthen}
+\usepackage{graphics}
+\usepackage{mathpartir}
+\usepackage{hyperref}
+\usepackage{times}
+
+%% Format Commands
+\newcommand{\ms}[1]{\ensuremath{\mathsf{#1}}}
+\newcommand{\irl}[1]{\mathtt{#1}}
+
+%% Abstract Syntax Definitions
+
+\newcommand{\subst}[3]{[#1/#2]#3}
+
+% Purity Classifier
+\newcommand{\purity}{c}
+\newcommand{\pure}{\irl{P}}
+\newcommand{\impure}{\irl{I}}
+
+% Field
+\newcommand{\field}{f}
+
+% Sigture
+\newcommand{\sigture}{\sigma}
+\newcommand{\arrowsig}[4]{(#2 : #3) \rightarrow_{#1} #4}
+\newcommand{\projarrowsig}[3]{(#1 : #2) \rightarrow_{\irl{proj}} #3}
+\newcommand{\bodysig}[1]{\irl{sig}\ #1\ \irl{end}}
+\newcommand{\recsig}[2]{\rho(#1. #2)}
+\newcommand{\typpart}[1]{\ms{TypPart}(#1)}
+
+% Pat
+\newcommand{\pat}{p}
+\newcommand{\varpat}{x}
+\newcommand{\wildpat}{\_}
+\newcommand{\tuplepat}[2]{\langle #1, ..., #2 \rangle}
+\newcommand{\tagpat}[2]{#1\ #2}
+\newcommand{\ascribepat}[2]{(#1 : #2)}
+
+% Kind
+\newcommand{\kind}{\kappa}
+\newcommand{\typkind}{\irl{type}}
+\newcommand{\singkind}[1]{\irl{S}(#1)}
+\newcommand{\arrowkind}[3]{(#1 : #2) \rightarrow #3}
+
+% Defn
+\newcommand{\defn}{d}
+\newcommand{\typdefn}[2]{\irl{type}\ #1 = #2}
+\newcommand{\tagdefn}[2]{\irl{tag}\ #1 = #2}
+\newcommand{\termdefn}[2]{\irl{val}\ #1 = #2}
+\newcommand{\modldefn}[2]{\irl{module}\ #1 = #2}
+
+% Decl
+\newcommand{\decl}{\delta}
+\newcommand{\typdecl}[3]{\irl{type}\ #1\ \irl{as}\ #2 : #3}
+\newcommand{\tagdecl}[3]{\irl{tag}\ #1 : #2 \rightharpoonup #3}
+\newcommand{\termdecl}[2]{\irl{val}\ #1 : #2}
+\newcommand{\modldecl}[3]{\irl{module}\ #1\ \irl{as}\ #2 : #3}
+
+% Typ
+\newcommand{\typ}{\tau}
+\newcommand{\vartyp}{t}
+\newcommand{\uvartyp}{u}
+\newcommand{\modlprojtyp}[2]{#1.#2}
+\newcommand{\funtyp}[3]{\lambda(#1 : #2). #3}
+\newcommand{\aptyp}[2]{#1\ #2}
+\newcommand{\arrowtyp}[2]{#1\ \irl{\rightarrow}\ #2}
+\newcommand{\prodtyp}[2]{#1 \times \ldots \times #2}
+\newcommand{\sumtyp}[2]{#1 + \ldots + #2}
+\newcommand{\numtyp}{\irl{num}}
+\newcommand{\strtyp}{\irl{str}}
+\newcommand{\foralltyp}[3]{\irl{\forall}(#1 : #2). #3}
+
+% Term
+\newcommand{\term}{e}
+\newcommand{\varterm}{x}
+\newcommand{\modlprojterm}[2]{#1.#2}
+\newcommand{\funterm}[3]{\lambda #1 \ldots #2. #3}
+\newcommand{\apterm}[2]{#1\ #2}
+\newcommand{\tupleterm}[2]{\langle #1, \ldots, #2 \rangle}
+\newcommand{\interm}[3]{\irl{in}[#1][#2](#3)}
+\newcommand{\matchterm}[5]{\irl{match}\ #1\ \irl{with}\ #2\ \Rightarrow #3\ |\ \ldots\ |\ #4 \Rightarrow #5\ \irl{end}}
+\newcommand{\numterm}[1]{\irl{num}[#1]}
+\newcommand{\strterm}[1]{\irl{str}[#1]}
+\newcommand{\typfunterm}[3]{\Lambda(#1 : #2). #3}
+\newcommand{\typapterm}[2]{#1[#2]}
+\newcommand{\letterm}[2]{\irl{let}\ #1\ \irl{in}\ #2}
+\newcommand{\ascribeterm}[2]{(#1 : #2)}
+
+% Tag
+\newcommand{\tagmetavar}{\Theta}
+\newcommand{\vartag}{T}
+\newcommand{\modlprojtag}[2]{#1.#2}
+\newcommand{\intag}[2]{\irl{in}[#1][#2]}
+\newcommand{\destrtag}[1]{\irl{destr}(#1)}
+
+% Modl
+\newcommand{\modl}{M}
+\newcommand{\varmodl}{X}
+\newcommand{\modlprojmodl}[2]{#1.#2}
+\newcommand{\funmodl}[3]{\lambda(#1 : #2).\ #3}
+\newcommand{\projfunmodl}[3]{\lambda_{\irl{proj}}(#1 : #2).\ #3}
+\newcommand{\apmodl}[2]{#1\ #2}
+\newcommand{\ascribemodl}[2]{(#1 : #2)}
+\newcommand{\recmodl}[3]{\irl{Fix}\ #1 : #2\ \irl{is}\ #3}
+\newcommand{\bodymodl}[1]{\irl{struct}\ #1\ \irl{end}}
+\newcommand{\letmodl}[2]{\irl{let}\ #1\ \irl{in}\ #2}
+
+%% Jugdement Definitions
+\newcommand{\ctx}{\Gamma}
+\newcommand{\judge}[2]{#1 \vdash #2}
+\newcommand{\okay}[1]{#1\ \irl{ok}}
+\newcommand{\subkind}[2]{#1 <: #2}
+\newcommand{\subsig}[2]{#1 <: #2}
+\newcommand{\steps}[2]{#1 \mapsto #2}
+\newcommand{\isval}[1]{#1\ \irl{val}}
+\newcommand{\judgeexact}[2]{#1 \Vdash #2}
+
+%% Rule Definitions
+\newcommand{\newrule}[3]{\inferrule{#1}{#2}{\textbf{(#3)}}}
+
+\begin{document}
+
+% \section{Abstract Syntax}
+
+% \[
+% \begin{array}{r c c l l}
+% \ms{Kind} & \kappa & ::= & \vark & \text{variable}\\
+% & & & \typek & \text{distinguished kind of types}\\
+% & & & \arrowk{\kappa}{\kappa} & \text{function}\\
+% & & & \prodk{\kappa}{\kappa} & \text{finite product}\\
+% & & & \sumk{\kappa}{\kappa} & \text{finite sum}\\
+% & & & \indk{\vark}{\kappa} & \text{inductive}\\
+% & & & \coik{\vark}{\kappa} & \text{coinductive}\\
+% & & & \forallk{\vark}{\kappa} & \text{polymorphic}\\
+% \ms{Con} & c & ::= & \varc & \text{variable}\\
+% & & & \lamc{\varc}{\kappa}{c} & \text{abstraction}\\
+% & & & \apc{c}{c} & \text{application}\\
+% & & & \tuplec{c}{c} & \text{tuple}\\
+% & & & \projc{c}{i} & \text{projection}\\
+% & & & \injc{\sumk{\kappa}{\kappa}}{i}{c} & \text{injection}\\
+% & & & \casec{c}{\varc}{c}{\varc}{c} & \text{casing}\\
+% & & & \foldc{\vark}{\kappa}{c} & \text{inductive constructor}\\
+% & & & \recursorc{\varc}{c}{c} & \text{recursor}\\
+% & & & \genc{\vark}{\kappa}{\varc}{c}{c} & \text{generator}\\
+% & & & \unfoldc{c} & \text{coinductive destructor}\\
+% & & & \lamkc{\vark}{c} & \text{kind abstraction}\\
+% & & & \apkc{c}{\kappa} & \text{kind application}\\
+% & & & \arrowc{c}{c} & \text{function}\\
+% & & & \prodc{c}{c} & \text{finite product}\\
+% & & & \sumc{c}{c} & \text{finite sum}\\
+% & & & \recc{\varc}{c} & \text{recursive}\\
+% & & & \forallc{\varc}{\kappa}{c} & \text{polymorphic}\\
+% & & & \existsc{\varc}{\kappa}{c} & \text{existential}\\
+% & & & \mapc{\vark}{\kappa}{\varc}{c}{c} & \text{generic map}\\
+% \ms{Pat} & p & ::= & \varp & \text{matches aything and binds it to variable}\\
+% & & & \wildp & \text{matches anything}\\
+% & & & \tuplep{p}{p} & \text{matches tuple}\\
+% & & & \injp{\sumc{c}{c}}{i}{p} & \text{matches injection}\\
+% & & & \foldp{\varc}{c}{p} & \text{matches recursive constructor}
+% \end{array}
+% \]
+% \[
+% \begin{array}{r c c l l}
+% \ms{Exp} & e & ::= & \vare & \text{variable}\\
+% & & & \lame{\vare}{c}{e} & \text{abstraction}\\
+% & & & \ape{e}{e} & \text{application}\\
+% & & & \tuplee{e}{e} & \text{tuple}\\
+% & & & \inje{\sumc{c}{c}}{i}{e} & \text{injection}\\
+% & & & \folde{\varc}{c}{e} & \text{recursive constructor}\\
+% & & & \matche{e}{p}{e}{p}{e} & \text{pattern matching}\\
+% & & & \lamce{\varc}{\kappa}{e} & \text{type constructor abstraction}\\
+% & & & \apce{e}{c} & \text{type constructor application}\\
+% & & & \packe{\varc}{\kappa}{c}{c}{e} & \text{implementation}\\
+% & & & \opene{e}{\varc}{\vare}{e} & \text{use}\\
+% & & & \lete{d}{d}{e} & \text{let}\\
+% & & & \fixe{\vare}{c}{e} & \text{least fixed point}\\
+% \ms{Decl} & D & ::= & \kinddecl{\vark}{D} & \text{kind}\\
+% & & & \kindalias{\vark}{\kappa}{D} & \text{kind alias}\\
+% & & & \typedecl{\varc}{\kappa}{D} & \text{type}\\
+% & & & \typealias{\varc}{c}{D} & \text{type alias}\\
+% & & & \expdecl{\vare}{c}{D} & \text{val}\\
+% & & & \sigdecl{\vars}{D} & \text{signature}\\
+% & & & \sigalias{\vars}{\sigma}{D} & \text{signature alias}\\
+% & & & \moddecl{\varm}{\sigma}{D} & \text{module}\\
+% & & & \declend & \text{end}\\
+% \ms{Sig} & \sigma & ::= & \vars & \text{variable}\\
+% & & & \sigs{D} & \text{signature}\\
+% & & & \arrows{\sigma}{\sigma} & \text{function}\\
+% \ms{Defn} & d & ::= & \kinddefn{\vark}{\kappa}{d} & \text{kind}\\
+% & & & \typedefn{\varc}{c}{d} & \text{type constructor}\\
+% & & & \expdefn{\vare}{e}{d} & \text{expression}\\
+% & & & \sigdefn{\vars}{\sigma}{d} & \text{signature}\\
+% & & & \moddefn{\varm}{M}{d} & \text{module}\\
+% & & & \defnend & \text{end}\\
+% \ms{Mod} & M & ::= & \varm & \text{variable}\\
+% & & & \structm{d} & \text{structure}\\
+% & & & \lamm{\varm}{\sigma}{M} & \text{abstraction}\\
+% & & & \apm{M}{M} & \text{application}\\
+% & & & \sealm{M}{\sigma} & \text{seal}
+% \end{array}
+% \]
+
+% \newpage
+
+\section{Statics}
+
+\subsection{Judgements}
+
+\[
+\judge{\ctx}{\okay{\kind}}
+\qquad
+\judge{\ctx}{\okay{\sigture}}
+\qquad
+\judge{\ctx}{\subkind{\kind}{\kind}}
+\qquad
+\judge{\ctx}{\subsig{\sigture}{\sigture}}
+\qquad
+\judge{\ctx}{\typ : \kind}
+\]
+\[
+\judge{\ctx}{\term : \typ}
+\qquad
+\judge{\ctx}{\tagmetavar : \typ \rightharpoonup \typ}
+\qquad
+\judge{\ctx}{(\judgeexact{\ctx}{\pat : \typ})}
+\qquad
+\judge{\ctx}{\modl :_{\purity} \sigture}
+\]
+
+\subsection{Rules}
+
+\subsubsection{\fbox{$\judge{\ctx}{\okay{\kind}}$}}
+
+\begin{small}
+
+\begin{mathpar}
+\newrule{ }
+        {\judge{\ctx}{\okay{\typkind}}}
+        { }
+\and
+\newrule{\judge{\ctx}{\typ : \typkind}}
+        {\judge{\ctx}{\okay{\singkind{\typ}}}}
+        { }
+\and
+\newrule{\judge{\ctx}{\okay{\kind_1}} \\ \judge{\ctx, \vartyp : \kind_1}{\okay{\kind_2}}}
+        {\judge{\ctx}{\okay{\arrowkind{\vartyp}{\kind_1}{\kind_2}}}}
+        { }
+\end{mathpar}
+
+\end{small}
+
+\subsubsection{\fbox{$\judge{\ctx}{\okay{\sigture}}$}}
+
+\begin{small}
+
+\begin{mathpar}
+\newrule{\judge{\ctx}{\okay{\sigture_1}} \\
+         \judge{\ctx, \varmodl : \sigture_1}{\okay{\sigture_2}}}
+        {\judge{\ctx}{\okay{\arrowsig{\purity}{\varmodl}{\sigture_1}{\sigture_2}}}}
+        { }
+\and
+\newrule{\judge{\ctx}{\okay{\sigture_1}} \\
+         \judge{\ctx, \varmodl : \sigture_1}{\okay{\sigture_2}}}
+        {\judge{\ctx}{\okay{\projarrowsig{\varmodl}{\sigture_1}{\sigture_2}}}}
+        { }
+\and
+\newrule{\judge{\ctx}{\okay{\kind}} \\
+         \judge{\ctx, \vartyp : \kind}{\okay{\bodysig{\decl_1 \ldots \decl_n}}}}
+        {\judge{\ctx}{\okay{\bodysig{\typdecl{\field}{\vartyp}{\kind}\quad\decl_1 \ldots \decl_n}}}}
+        { }
+\and
+\newrule{\judge{\ctx}{\typ_1 : \typkind} \\
+         \judge{\ctx}{\typ_2 : \typkind} \\
+         \judge{\ctx}{\okay{\bodysig{\decl_1 \ldots \decl_n}}}}
+        {\judge{\ctx}{\okay{\bodysig{\tagdecl{\field}{\typ_1}{\typ_2}\quad\decl_1 \ldots \decl_n}}}}
+        { }
+\and
+\newrule{\judge{\ctx}{\typ : \typkind} \\
+         \judge{\ctx}{\okay{\bodysig{\decl_1 \ldots \decl_n}}}}
+        {\judge{\ctx}{\okay{\bodysig{\termdecl{\field}{\typ}\quad\decl_1 \ldots \decl_n}}}}
+        { }
+\and
+\newrule{\judge{\ctx}{\okay{\sigture}} \\
+         \judge{\ctx, \varmodl : \sigture}{\okay{\bodysig{\decl_1 \ldots \decl_n}}}}
+        {\judge{\ctx}{\okay{\bodysig{\modldecl{\field}{\varmodl}{\sigture}\quad\decl_1 \ldots \decl_n}}}}
+        { }
+\and
+\newrule{\judge{\ctx}{\okay{\typpart{\sigture}}} \\
+         \judge{\ctx, \varmodl : \typpart{\sigture}}{\okay{\sigture}}}
+        {\judge{\ctx}{\okay{\recsig{\varmodl}{\sigture}}}}
+        { }
+\end{mathpar}
+
+\end{small}
+
+\subsubsection{\fbox{$\purity \leq \purity$}}
+
+\begin{small}
+
+\begin{mathpar}
+\newrule{ }
+        {\pure \leq \pure}
+        { }
+\and
+\newrule{ }
+        {\pure \leq \impure}
+        { }
+\and
+\newrule{ }
+        {\impure \leq \impure}
+        { }
+\end{mathpar}
+
+\end{small}
+
+\subsubsection{\fbox{$\judge{\ctx}{\subkind{\kind}{\kind'}}$}}
+
+\begin{small}
+
+\begin{mathpar}
+\newrule{ }
+        {\judge{\ctx}{\subkind{\typkind}{\typkind}}}
+        { }
+\and
+\newrule{\judge{\ctx}{\typ : \typkind}}
+        {\judge{\ctx}{\subkind{\singkind{\typ}}{\typkind}}}
+        { }
+\and
+\newrule{ }
+        {\judge{\ctx}{\subkind{\singkind{\typ}}{\singkind{\typ}}}}
+        { }
+\and
+\newrule{\judge{\ctx}{\subkind{\kind_1'}{\kind_1}} \\
+         \judge{\ctx, \vartyp : \kind_1'}{\subkind{\kind_1'}{\kind_1}}}
+        {\judge{\ctx}{\subkind{\arrowkind{\vartyp}{\kind_1}{\kind_2}}{\arrowkind{\vartyp}{\kind_1'}{\kind_2'}}}}
+        { }
+\end{mathpar}
+
+\end{small}
+
+\subsubsection{\fbox{$\judge{\ctx}{\subsig{\sigture}{\sigture'}}$}}
+
+\begin{small}
+
+% ??? Make sure these enforce well-formedness. (And do the same for the kind arrow rule).
+% ??? Add rules for body and rec cases.
+\begin{mathpar}
+\newrule{\purity \leq \purity' \\
+         \judge{\ctx}{\subsig{\sigture_1'}{\sigture_1}} \\
+         \judge{\ctx, \varmodl : \sigture_1'}{\subsig{\sigture_1'}{\sigture_1}}}
+        {\judge{\ctx}{\subsig{\arrowsig{\purity}{\varmodl}{\sigture_1}{\sigture_2}}{\arrowsig{\purity'}{\varmodl}{\sigture_1'}{\sigture_2'}}}}
+        { }
+\and
+\newrule{\judge{\ctx}{\subsig{\sigture_1'}{\sigture_1}} \\
+         \judge{\ctx, \varmodl : \sigture_1'}{\subsig{\sigture_1'}{\sigture_1}}}
+        {\judge{\ctx}{\subsig{\projarrowsig{\varmodl}{\sigture_1}{\sigture_2}}{\projarrowsig{\varmodl}{\sigture_1'}{\sigture_2'}}}}
+        { }
+\and
+\newrule{ }
+        {\judge{\ctx}{\subsig{\projarrowsig{\varmodl}{\sigture_1}{\sigture_2}}{\typpart\sigture_2}}}
+        { }
+\end{mathpar}
+
+\end{small}
+
+\subsubsection{\fbox{$\judge{\ctx}{\typ : \kind}$}}
+
+\begin{small}
+
+\begin{mathpar}
+\newrule{\vartyp : \kind \in \ctx}
+        {\judge{\ctx}{\vartyp : \kind}}
+        { }
+\and
+\newrule{ }
+        {\judge{\ctx}{\uvartyp : \typkind}}
+        { }
+\and
+\newrule{\judge{\ctx}{\modl :_{\pure} \bodysig{\typdecl{\field}{\_}{\kind}}}}
+        {\judge{\ctx}{\modlprojtyp{\modl}{\field} : \kind}}
+        { }
+\and
+\newrule{\judge{\ctx}{\okay{\kind}} \\
+         \judge{\ctx, \vartyp : \kind}{\typ : \kind'}}
+        {\judge{\ctx}{\funtyp{\vartyp}{\kind}{\typ} : \arrowkind{\vartyp}{\kind}{\kind'}}}
+        { }
+\and
+\newrule{\judge{\ctx}{\typ_1 : \arrowkind{\vartyp}{\kind_1}{\kind'}} \\
+         \judge{\ctx}{\typ_2 : \kind_2} \\
+         \judge{\ctx}{\subkind{\kind_2}{\kind_1}}}
+        {\judge{\ctx}{\aptyp{\typ_1}{\typ_2} : \subst{\typ_2}{\vartyp}{\kind'}}}
+        { }
+\and
+\newrule{\judge{\ctx}{\typ_1 : \typkind} \\ \judge{\ctx}{\typ_2 : \typkind}}
+        {\judge{\ctx}{\arrowtyp{\typ_1}{\typ_2} : \typkind}}
+        { }
+\and
+\newrule{\judge{\ctx}{\typ_1 : \typkind} \\
+         \ldots \\
+         \judge{\ctx}{\typ_n : \typkind}}
+        {\judge{\ctx}{\prodtyp{\typ_1}{\typ_n} : \typkind}}
+        { }
+\and
+\newrule{\judge{\ctx}{\typ_1 : \typkind} \\
+         \ldots \\
+         \judge{\ctx}{\typ_n : \typkind}}
+        {\judge{\ctx}{\sumtyp{\typ_1}{\typ_n} : \typkind}}
+        { }
+\and
+\newrule{ }
+        {\judge{\ctx}{\numtyp : \typkind}}
+        { }
+\and
+\newrule{ }
+        {\judge{\ctx}{\strtyp : \typkind}}
+        { }
+\and
+\newrule{\judge{\ctx}{\okay{\kind}} \\
+         \judge{\ctx, \vartyp : \kind}{\typ : \typkind}}
+        {\judge{\ctx}{\foralltyp{\vartyp}{\kind}{\typ} : \typkind}}
+        { }
+\end{mathpar}
+
+\end{small}
+
+\subsubsection{\fbox{$\judge{\ctx}{\term : \typ}$}}
+
+\begin{small}
+
+\begin{mathpar}
+\newrule{\varterm : \typ \in \ctx}
+        {\judge{\ctx}{\varterm : \typ}}
+        {var}
+\and
+\newrule{\judge{\ctx}{\modl :_{\pure} \bodysig{\termdecl{\field}{\typ}}}}
+        {\judge{\ctx}{\modlprojterm{\modl}{\field} : \typ}}
+        {modl-proj}
+\and
+\newrule{\judge{\ctx}{(\judgeexact{\ctx_1}{\pat_1 : \typ_1})} \\
+         \ldots \\
+         \judge{\ctx}{(\judgeexact{\ctx_n}{\pat_n : \typ_n})} \\
+         \judge{\ctx, \ctx_1, \ldots, \ctx_n}{\term : \tau}}
+        {\judge{\ctx}{\funterm{\pat_1}{\pat_n}{\term} : \arrowtyp{\typ_1}{\arrowtyp{\ldots}{\arrowtyp{\typ_n}{\typ}}}}}
+        {$\rightarrow$-I}
+\and
+\newrule{\judge{\ctx}{\term_1 : \arrowtyp{\typ}{\typ'}} \\
+         \judge{\ctx}{\term_2 : \typ}}
+        {\judge{\ctx}{\apterm{\term_1}{\term_2} : \typ'}}
+        {$\rightarrow$-E}
+\and
+\newrule{\judge{\ctx}{\term_1 : \typ_1} \\
+         \ldots \\
+         \judge{\ctx}{\term_n : \typ_n}}
+        {\judge{\ctx}{\tupleterm{\term_1}{\term_n} : \prodtyp{\typ_1}{\typ_n}}}
+        {$\times$-I}
+\and
+\newrule{(1 \leq i \leq n) \\
+         \judge{\ctx}{\term : \typ_i} \\
+         \judge{\ctx}{\typ_1 : \typkind} \\
+         \ldots \\
+         \judge{\ctx}{\typ_n : \typkind}}
+        {\judge{\ctx}{\interm{n}{i}{\term} : \sumtyp{\typ_1}{\typ_n}}}
+        {$+$-I}
+\and
+\newrule{\judge{\ctx}{\term : \typ} \\
+         \judge{\ctx}{(\judgeexact{\ctx_1}{\pat_1}{\typ})} \\
+         \ldots \\
+         \judge{\ctx}{(\judgeexact{\ctx_n}{\pat_n}{\typ})} \\
+         \judge{\ctx, \ctx_1}{\term_1 : \typ'} \\
+         \ldots \\
+         \judge{\ctx, \ctx_n}{\term_n : \typ'}}
+        {\judge{\ctx}{\matchterm{\term}{\pat_1}{\term_1}{\pat_n}{\term_n} : \typ'}}
+        {match}
+\and
+\newrule{ }
+        {\judge{\ctx}{\numterm{n} : \numtyp}}
+        {$\irl{num}$-I}
+\and
+\newrule{ }
+        {\judge{\ctx}{\strterm{s} : \strtyp}}
+        {$\irl{str}$-I}
+\and
+\newrule{\judge{\ctx}{\okay{\kind}} \\
+         \judge{\ctx, \vartyp : \kind}{\term : \typ}}
+        {\judge{\ctx}{\typfunterm{\vartyp}{\kind}{\term} : \foralltyp{\vartyp}{\kind}{\typ}}}
+        {$\forall$-I}
+\and
+\newrule{\judge{\ctx}{\term : \foralltyp{\vartyp}{\kind_1}{\typ'}} \\
+         \judge{\ctx}{\typ : \kind_2} \\
+         \judge{\ctx}{\subkind{\kind_2}{\kind_1}}}
+        {\judge{\ctx}{\typapterm{\term}{\typ} : \subst{\typ}{\vartyp}{\typ'}}}
+        {$\forall$-E}
+\and
+\newrule{\judge{\ctx}{\typ : \kind} \\
+         \judge{\ctx, \vartyp : \ms{singleton}(\typ : \kind)}{\term : \typ'} \\
+         \judge{\ctx}{\typ' : \typkind}}
+        {\judge{\ctx}{\letterm{\typdefn{\vartyp}{\typ}}{\term} : \typ'}}
+        {let-typ}
+\and
+\newrule{\judge{\ctx}{\tagmetavar : \tau_1 \rightharpoonup \tau_2} \\
+         \judge{\ctx, \vartag : \tau_1 \rightharpoonup \tau_2}{\term : \typ}}
+        {\judge{\ctx}{\letterm{\tagdefn{\vartag}{\tagmetavar}}{\term} : \typ}}
+        {let-tag}
+\and
+\newrule{\judge{\ctx}{\term : \typ} \\
+         \judge{\ctx}{(\judgeexact{\ctx'}{\pat : \typ})} \\
+         \judge{\ctx, \ctx'}{\term_2 : \typ'}}
+        {\judge{\ctx}{\letterm{\termdefn{\pat}{\term_1}}{\term_2} : \typ'}}
+        {let-term}
+\and
+\newrule{\judge{\ctx}{\modl :_{\impure} \sigture} \\
+         \judge{\ctx, \varmodl : \ms{singleton}(\modl : \sigture)}{\term : \typ}}
+        {\judge{\ctx}{\letterm{\modldefn{\varmodl}{\modl}}{\term} : \typ}}
+        {let-modl}
+\and
+\newrule{\judge{\ctx}{\term : \typ}}
+        {\judge{\ctx}{\ascribeterm{\term}{\typ} : \typ}}
+        {ascribe}
+\end{mathpar}
+
+\end{small}
+
+\subsubsection{\fbox{$\judge{\ctx}{\tagmetavar : \typ \rightharpoonup \typ}$}}
+
+\begin{small}
+
+\begin{mathpar}
+\newrule{\vartag : \typ_1 \rightharpoonup \typ_2 \in \ctx}
+        {\judge{\ctx}{\vartag : \typ_1 \rightharpoonup \typ_2}}
+        {var}
+\and
+\newrule{\judge{\ctx}{\modl :_{\pure} \bodysig{\tagdecl{\field}{\typ_1}{\typ_2}}}}
+        {\judge{\ctx}{\modlprojtag{\modl}{\field} : \typ_1 \rightharpoonup \typ_2}}
+        {modl-proj}
+\and
+\newrule{(1 \leq i \leq n) \\
+         \judge{\ctx}{\typ_1 : \typkind} \\
+         \ldots \\
+         \judge{\ctx}{\typ_n : \typkind}}
+        {\judge{\ctx}{\intag{n}{i} : \sumtyp{\typ_1}{\typ_n} \rightharpoonup \typ_i}}
+        { }
+\and
+\newrule{\judge{\ctx}{\term : \typ_1 \rightarrow \typ_2\ \irl{option}}}
+        {\judge{\ctx}{\destrtag{\term} : \typ_1 \rightharpoonup \typ_2}}
+        { }
+\end{mathpar}
+
+\end{small}
+
+\subsubsection{\fbox{$\judge{\ctx}{(\judgeexact{\ctx}{\pat : \typ})}$}}
+
+\begin{small}
+
+\begin{mathpar}
+\newrule{\judge{\ctx}{\tau : \typkind}}
+        {\judge{\ctx}{(\judgeexact{\emptyset}{\wildpat : \tau})}}
+        { }
+\and
+\newrule{\judge{\ctx}{\tau : \typkind}}
+        {\judge{\ctx}{(\judgeexact{\varpat : \tau}{\varpat : \tau})}}
+        { }
+\and
+\newrule{\judge{\ctx}{(\judgeexact{\ctx_1}{\pat_1 : \tau_1})} \\
+         \ldots \\
+         \judge{\ctx}{(\judgeexact{\ctx_n}{\pat_n : \tau_n})}}
+        {\judge{\ctx}{(\judgeexact{\ctx_1, \ldots, \ctx_n}{\tuplepat{\pat_1}{\pat_n} : \prodtyp{\tau_1}{\tau_n}})}}
+        { }
+\and
+\newrule{\judge{\ctx}{\tagmetavar : \typ \rightharpoonup \typ'} \\
+         \judge{\ctx}{(\judgeexact{\ctx'}{\pat : \typ'})}}
+        {\judge{\ctx}{(\judgeexact{\ctx'}{\tagpat{\tagmetavar}{\pat} : \typ})}}
+        { }
+\and
+\newrule{\judge{\ctx}{(\judgeexact{\ctx'}{\pat : \typ})}}
+        {\judge{\ctx}{(\judgeexact{\ctx'}{\ascribepat{\pat}{\typ} : \typ})}}
+        { }
+\end{mathpar}
+
+\end{small}
+
+\subsubsection{\fbox{$\judge{\ctx}{\modl :_{\purity} \sigma}$}}
+
+\begin{small}
+
+\begin{mathpar}
+\newrule{\varmodl : \sigma \in \ctx}
+        {\judge{\ctx}{\varmodl :_{\pure} \sigma}}
+        { }
+\and
+\newrule{\judge{\ctx}{\modl :_{\pure} \bodysig{\modldecl{f}{\_}{\sigma}}}}
+        {\judge{\ctx}{\modlprojmodl{\modl}{f} :_{\pure} \sigma}}
+        { }
+\and
+\newrule{\judge{\ctx}{\okay{\sigture}} \\
+         \judge{\ctx, \varmodl : \sigture}{\modl :_{\purity} \sigture'}}
+        {\judge{\ctx}{\funmodl{\varmodl}{\sigture}{\modl} :_{\pure} \arrowsig{\purity}{\varmodl}{\sigture}{\sigture'}}}
+        { }
+\and
+\newrule{\judge{\ctx}{\okay{\typpart{\sigture}}} \\
+         \judge{\ctx, \varmodl : \sigture}{\modl :_{\purity} \sigture'} \\
+         \judge{\ctx}{\isval{\modl}}}
+        {\judge{\ctx}{\projfunmodl{\varmodl}{\sigture}{\modl} :_{\purity} \projarrowsig{\varmodl}{\sigture}{\sigture'}}}
+        { }
+\and
+\newrule{\judge{\ctx}{\modl_1 :_{\purity} \arrowsig{\purity}{\varmodl}{\sigture}{\sigture'}} \\
+         \judge{\ctx}{\modl_2 :_{\pure} \sigture}}
+        {\judge{\ctx}{\apmodl{\modl_1}{\modl_2} :_{\purity} \sigture'}}
+        { }
+\and
+\newrule{\judge{\ctx}{\modl_1 :_{\purity} \projarrowsig{\varmodl}{\sigture}{\sigture'}} \\
+         \judge{\ctx}{\modl_2 :_{\pure} \sigture}}
+        {\judge{\ctx}{\apmodl{\modl_1}{\modl_2} :_{\purity} \sigture'}}
+        { }
+\and
+\newrule{\judge{\ctx}{\modl :_{\impure} \sigture}}
+        {\judge{\ctx}{\ascribemodl{\modl}{\sigture} :_{\impure} \sigture}}
+        { }
+\and
+\newrule{\judge{\ctx}{\okay{\sigture}} \\
+         \judge{\ctx, \varmodl : \sigture}{\modl :_{\pure} \sigture} \\
+         \judge{\ctx}{\isval{\modl}}}
+        {\judge{\ctx}{\recmodl{\varmodl}{\sigture}{\modl} :_{\pure} \sigture}}
+        { }
+\and
+\newrule{\judge{\ctx}{?_1 : \decl_1} \\ \judge{\ctx}{?_n : \decl_n}}
+        {\judge{\ctx}{\bodymodl{?_1 \ldots ?_n} :_{\pure} \bodysig{\decl_1 \ldots \decl_n}}}
+        {???}
+\and
+\newrule{\judge{\ctx}{\typ : \kind} \\
+         \judge{\ctx, \vartyp : \ms{singleton}(\typ : \kind)}{\modl :_{\purity} \sigture} \\
+         \judge{\ctx}{\okay{\sigture}}}
+        {\judge{\ctx}{\letmodl{\typdefn{\vartyp}{\typ}}{\modl} :_{\purity} \sigture}}
+        { }
+\and
+\newrule{\judge{\ctx}{\tagmetavar : \typ_1 \rightharpoonup \typ_2} \\
+         \judge{\ctx, \vartag : \typ_1 \rightharpoonup \typ_2}{\modl :_{\purity} \sigture} \\
+         \judge{\ctx}{\okay{\sigture}}}
+        {\judge{\ctx}{\letmodl{\tagdefn{\vartag}{\tagmetavar}}{\modl} :_{\purity} \sigture}}
+        { }
+\and
+\newrule{\judge{\ctx}{\term : \typ} \\
+         \judge{\ctx}{(\judgeexact{\ctx'}{\pat : \typ})} \\
+         \judge{\ctx, \ctx'}{\modl :_{\purity} \sigture} \\
+         \judge{\ctx}{\okay{\sigture}}}
+        {\judge{\ctx}{\letmodl{\termdefn{\pat}{\term}}{\modl} :_{\purity} \sigture}}
+        { }
+\and
+\newrule{\judge{\ctx}{\modl_1 :_\purity \sigture} \\
+         \judge{\ctx, \varmodl : \ms{singleton}(\modl_1 : \sigture)}{\modl_2 :_{\purity} \sigture'} \\
+         \judge{\ctx}{\okay{\sigture}}}
+        {\judge{\ctx}{\letmodl{\modldefn{\varmodl}{\modl_1}}{\modl_2} :_{\purity} \sigture'}}
+        { }
+\and
+\newrule{\judge{\ctx}{\modl :_\purity \sigture} \\
+         \judge{\ctx}{\subsig{\sigture}{\sigture'}}}
+        {\judge{\ctx}{\modl :_\purity \sigture'}}
+        { }
+\and
+\newrule{\judge{\ctx}{\modl :_{\pure} \sigture}}
+        {\judge{\ctx}{\modl :_{\impure} \sigture}}
+        { }
+\end{mathpar}
+
+\end{small}
+
+\newpage
+
+\section{Dynamics}
+
+\subsection{Judgements}
+
+\[
+\steps{e}{e'}
+\qquad
+\isval{e}
+\]
+
+\subsection{Rules}
+
+\section{Safety}
+
+\subsection{Progress}
+
+\subsection{Preservation}
+
+\end{document}

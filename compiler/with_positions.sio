@@ -1,0 +1,8 @@
+module With_positions = mod
+  type t a =
+    {
+      start_pos : Source_code_position.t,
+      end_pos : Source_code_position.t,
+      without_positions : a
+    }
+end

@@ -1,0 +1,10 @@
+_build/*
+.merlin
+src/lexer.ml$
+src/parser.mli?$
+tex/.*\.aux
+tex/.*\.log
+tex/.*\.out
+tex/.*\.pdf
+^interpret$
+semio.install

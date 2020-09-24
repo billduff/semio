@@ -1,0 +1,24 @@
+(library
+ (name semio)
+ (preprocess (pps ppx_jane))
+ (library_flags -linkall)
+ (inline_tests)
+ (libraries
+  abbot_runtime
+  core
+  ocamlgraph))
+
+(ocamllex lexer)
+(menhir
+ (flags -v --comment --strict) ;; --trace
+ (modules parser))
+
+(rule
+ (targets
+  typed_functor_intf.ml
+  typed_functor.mli
+  typed_functor.ml)
+ (deps
+  (:spec typed.abt))
+ (action
+  (run abbot ocaml -max-line-length 99 -output-file typed_functor %{spec})))

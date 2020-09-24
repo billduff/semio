@@ -1,0 +1,5 @@
+module Sexp = mod
+  type t =
+    | Atom of String.t
+    | List of t list
+end

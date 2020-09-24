@@ -1,0 +1,12 @@
+module Char = mod
+  type t = char
+
+  val compare = built-in "char_compare" : t * t -> order end
+
+  fun equal {t1, t2} =
+    match compare {t1, t2} with
+    | Equal => True
+    | Less => False
+    | Greater => False
+    end
+end

@@ -1,0 +1,23 @@
+(alias
+ (name default)
+ (deps
+  (:interpret ../bin/interpret.exe)
+  (:sources (glob_files *.sig) (glob_files *.sio)))
+ (action
+  (run
+   %{interpret}
+   common.sio
+   number.sio
+   char.sio
+   string.sio
+   list.sio
+   optional.sio
+   comparable.sig
+   map.sig
+   ref.sio
+   source_code_position.sio
+   with_positions.sio
+   unbound.sig
+   unbound.sio
+   typed.sig
+   dynamics.sio)))

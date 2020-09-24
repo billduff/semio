@@ -1,0 +1,12 @@
+module Number = mod
+  type t = number
+
+  val compare = built-in "number_compare" : t * t -> order end
+
+  fun equal {t1, t2} =
+    match compare {t1, t2} with
+    | Equal => True
+    | Less => False
+    | Greater => False
+    end
+end

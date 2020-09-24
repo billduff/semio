@@ -1,0 +1,7 @@
+(executable
+ (name interpret)
+ (public_name semio-interpret)
+ (preprocess (pps ppx_jane))
+ (libraries
+  core
+  semio))

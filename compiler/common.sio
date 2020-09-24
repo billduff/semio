@@ -1,0 +1,5 @@
+type bool = True | False
+type optional a = None | Some of a
+type order = Less | Equal | Greater
+
+val print = built-in "print" : string -> unit end

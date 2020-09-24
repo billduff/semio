@@ -1,0 +1,7 @@
+type foo = unit
+
+module X = mod
+  type t = unit
+
+  val x = {}
+end

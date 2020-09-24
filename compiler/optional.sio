@@ -1,0 +1,25 @@
+module Optional = mod
+  type t a = optional a
+
+  fun return x = Some x
+
+  fun bind { t = t, f = f } =
+    match t with
+    | None => None
+    | Some x => f x
+    end
+
+  fun all l =
+    match l with
+    | List.Nil => Some List.Nil
+    | List.Cons { opt, l' } =>
+      match opt with
+      | None => None
+      | Some value =>
+        match all l' with
+        | None => None
+        | Some l'' => Some (List.Cons { value, l'' })
+        end
+      end
+    end
+end

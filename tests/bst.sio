@@ -1,0 +1,210 @@
+module BrotherTree (Key : sig type t val compare : t * t -> Order.t end) =
+  type key = Key.t
+
+  type color = Red | Black
+
+  type tree elt =
+  | OneLeaf of key * elt
+  | TwoLeaf of key * elt * key * elt
+  | OneTwo of tree elt * key * elt * tree elt
+  | TwoOne of tree elt * key * elt * tree elt
+  | TwoTwo of tree elt * key * elt * tree elt
+
+  type t elt =
+  | Empty
+  | Tree of tree elt * int
+
+  fun size (t : t elt) : int =
+    match t with
+    | Empty => 0
+    | Tree (_, n) => n
+    end
+
+  fun find' (t : tree elt) (k : key) : Option.t elt =
+    match t with
+    | OneLeaf (k', v) =>
+      match Key.compare k k' with
+      | Order.Equal -> Option.Some v
+      | _ -> Option.None
+      end
+    | TwoLeaf (k1, v1, k2, v2)=>
+      match Key.compare k k2 with
+      | Order.Less =>
+        match Key.compare k k1 with
+        | Order.Equal => Option.Some v1
+        | _ => Option.None
+        end
+      | Order.Equal => Option.Some v2
+      | Order.Greater => Option.None
+      end
+    | (OneTwo (l, k', v, r) | TwoOne (l, k', v, r) | TwoTwo (l, k', v, r)) =>
+      match Key.compare k k' with
+      | Order.Less => find l k
+      | Order.Equal => Option.Some v
+      | Order.Greater => find r k
+      end
+    end
+
+  fun find (t : t elt) (k : key) : Option.t elt =
+    match t with
+    | Empty => None
+    | Tree (tree, _) => find' tree k
+    end
+
+  fun add' (t : tree elt) (k : key) (v : elt) : tree elt * Bool.t * Option.t elt =
+    match t with
+    | OneLeaf (k', v') =>
+      match Key.compare k k' with
+      | Order.Less => (TwoLeaf (k, v, k', v'), True, Option.None)
+      | Order.Equal => (OneLeaf (k, v), False, Option.Some v')
+      | Order.Greater => (TwoLeaf (k', v', k, v), True, Option.None)
+      end
+    | TwoLeaf (k1, v1, k2, v2) =>
+      match Key.compare k k2 with
+      | Order.Less =>
+        match Key.compare k k1 with
+        | Order.Less =>
+          (TwoTwo (OneLeaf (k, v), k1, v1, OneLeaf (k2, v2)), False, Option.None)
+        | Order.Equal =>
+          (TwoLeaf (k, v, k2, v2), False, Option.Some v1)
+        | Order.Greater =>
+          (TwoTwo (OneLeaf (k1, v1), k, v, OneLeaf (k2, v2)), False, Option.None)
+        end
+      | Order.Equal =>
+        (TwoLeaf (k1, v1, k, v), False, Option.Some v2)
+      | Order.Greater =>
+        (TwoTwo (OneLeaf (k1, v1), k2, v2, OneLeaf (k, v)), False, Option.None)
+      end
+    | OneTwo (l, k', v', r) =>
+      let
+        val (t', replaced) =
+          match Key.compare k k' with
+          | Order.Less =>
+            let val (l', grew, replaced) = add' l k v in
+              (match grew with
+               | True => TwoTwo (l', k', v', r)
+               | False => OneTwo (l', k', v', r)
+               end,
+               replaced)
+            end
+          | Order.Equal => (OneTwo (l, k, v, r), Option.Some v')
+          | Order.Greater =>
+            let val (r', grew, replaced) = add' r k v in
+              (match grew with
+               | True =>
+                 match r' with
+                 | OneTwo (rl, rk, rv, rr) =>
+                   TwoTwo (TwoTwo (l, k', v', rl), rk, rv, rr)
+                 | TwoOne (rl, rk, rv, rr) =>
+                   match rl with
+                   | TwoLeaf (k1, v1, k2, v2) =>
+                     let val OneLeaf (rrk, rrv) = rr in
+                       TwoTwo (TwoTwo (l, k', v', OneLeaf (k1, v1)), k2, v2, TwoLeaf (rk, rv, rrk, rrv))
+                     end
+                   | OneTwo (rll, rlk, rlv, rlr) =>
+                     TwoTwo (TwoOne (l, k', v', rll), rlk, rlv, TwoTwo (rlr, rk, rv, rr))
+                   | TwoOne (rll, rlk, rlv, rlr) =>
+                     TwoTwo (TwoTwo (l, k', v', rll), rlk, rlv, OneTwo (rlr, rk, rv, rr))
+                   | TwoTwo (rll, rlk, rlv, rlr) =>
+                     TwoTwo (TwoTwo (l, k', v', rll), rlk, rlv, TwoTwo (rlr, rk, rv, rr))
+                   end
+                 end
+               | False => OneTwo (l, k', v', r')
+               end,
+               replaced)
+            end
+          end
+      in
+        (t', False, replaced)
+      end
+    | TwoOne (l, k', v', r) =>
+      let
+        val (t', replaced) =
+          match Key.compare k k' with
+          | Order.Less =>
+            let val (l', grew, replaced) = add' l k v in
+              (match grew with
+               | True =>
+                 match l' with
+                 | OneTwo (ll, lk, lv, lr) =>
+                   match lr with
+                   | TwoLeaf (k1, v1, k2, v2) =>
+                     let val OneLeaf (llk, llv) = ll in
+                       TwoTwo (TwoLeaf (llk, llv, lk, lv), k1, v1, TwoTwo (OneLeaf (k2, v2), k', v', r))
+                     end
+                   | OneTwo (lrl, lrk, lrv, lrr) =>
+                     TwoTwo (TwoOne (ll, lk, lv, lrl), lrk, lrv, TwoTwo (lrr, k', v', r))
+                   | TwoOne (lrl, lrk, lrv, lrr) =>
+                     TwoTwo (TwoTwo (ll, lk, lv, lrl), lrk, lrv, OneTwo (lrr, k', v', r))
+                   | TwoTwo (lrl, lrk, lrv, lrr) =>
+                     TwoTwo (TwoTwo (ll, lk, lv, lrl), lrk, lrv, TwoTwo (lrr, k', v', r))
+                   end
+                 | TwoOne (ll, lk, lv, lr) =>
+                   TwoTwo (ll, lk, lv, TwoTwo (lr, k', v', r))
+                 end
+               | False => TwoOne (l', k', v', r)
+               end,
+               replaced)
+            end
+          | Order.Equal => (TwoOne (l, k, v, r), Some v')
+          | Order.Greater =>
+            let val (r', grew, replaced) = add' r k v in
+              (match grew with
+               | True => TwoTwo (l, k', v', r')
+               | False => TwoOne (l, k', v', r')
+               end,
+               replaced)
+            end
+          end
+      in
+      (t', False, replaced)
+    | TwoTwo (l, k', v', r) =>
+      match Key.compare k k' with
+      | Order.Less =>
+        let (l', grew, replaced) = add' l k v in
+          match grew with
+          | True => (TwoOne (l', k', v', r), True, replaced)
+          | False => (TwoTwo (l', k', v', r), False, replaced)
+          end
+        end
+      | Order.Equal => (TwoTwo (l, k, v, r), False, Option.Some v')
+      | Order.Greater =>
+        let (r', grew, replaced) = add' r k v in
+          match grew with
+          | True => (OneTwo (l, k', v', r'), True, replaced)
+          | False => (TwoTwo (l, k', v', r'), False, replaced)
+          end
+        end
+      end
+    end
+
+  fun add (t : t elt) (k : key) (v : elt) : t elt * option elt =
+    match t with
+    | Empty => Tree (OneLeaf (l, v))
+    | Tree (tree, n) =>
+      let (tree', _, replaced) = add' tree k v) in
+      let
+        val n' =
+          match replaced with
+          | None => n + 1
+          | Some _ => n
+          end
+      in
+      Tree (tree', n')
+    end
+
+  fun to_alist' (t : tree elt) (acc : List.t (key * elt)) : List.t (key * elt) =
+    match t with
+    | OneLeaf (k, v) => List.Cons ((k, v), acc)
+    | TwoLead (k1, v1, k2, v2) => List.Cons ((k1, v1), List.Cons (k2, v2), acc)
+    | (OneTwo (l, k, v, r) | TwoOne (l, k, v, r) | TwoTwo (l, k, v, r)) =>
+      to_alist l (List.Cons ((k, v), to_alist r acc))
+    end
+
+  fun to_alist (t : t elt) : List.t (key * elt) =
+    match t with
+    | Empty => List.Nil
+    | Tree (tree, _) =>
+      to_alist' tree List.Nil
+    end
+end

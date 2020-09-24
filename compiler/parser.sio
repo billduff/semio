@@ -1,0 +1,652 @@
+smodule Parser : Parser = mod
+  module Token = mod
+    type t =
+      | Type
+      | Let
+      | In
+      | Fn
+      | Match
+      | With
+      | Of
+      | Lparen
+      | Rparen
+      | Lbrace
+      | Rbrace
+      | End
+      | Val
+      | Fun
+      | Infix
+      | Include
+      | Module
+      | Signature
+      | Sig
+      | Mod
+      | Pat
+      | Built_in
+      | Equal
+      | Eqarrow
+      | Arrow
+      | Bar
+      | Colon
+      | Comma
+      | Dot
+      | Wild
+      | Number of Number.t
+      | String of String.t
+      | Name of String.t
+      | Big_name of String.t
+  end
+
+  (* CR wduff: Actually get source code positions. *)
+  fun with_positions x =
+    { start_pos = "somewhere", end_pos = "somewhere", without_positions = x }
+
+(*
+  first defns = epsilon | first defn
+  first defn = Infix | Type | Pat | Val | Fun | Signature | Module | Include
+  first typ_args = epsilon | Name
+  first typ_defn_body = Bar | Big_name | first typ
+  first sum_typ_defn = first sum_typ_branch
+  first sum_typ_branch = Big_name
+  first typ = Lparen | first typ_ap
+  first typ_ap = first simple_typ
+  first simple_typ = Name | Arrow | Big_name | Lparen
+  first modl_proj = Big_name
+  first modl_proj' = epsilon | Big_name
+  first term = first simple_term
+  first simple_term = Name | Big_name | Fn | Lbrace | Number | String | Built_in | Let | Lparen
+  first simple_pats = first simple_pat
+  first simple_pat = Wild | Name | Big_name | Lbrace | Number | String | Lparen
+  first pat = first tag | first simple_pat
+  first match_cases = first match_case
+  first match_case = first pat
+  first sigture = first sigture'
+  first sigture' = Big_name | Sig
+  first path = ?
+  first decls = epsilon | first decl
+  first decl = Infix | Infix | Type | Pat | Val | Signature | Module | Include
+  first modl = first simple_modl
+  first simple_modl = Big_name | Mod | Lparen
+
+  follow defns = In | End
+  follow defn = first defn | follow defns
+  follow typ_args = Equal | follow decl
+  follow typ_defn_body = follow defn
+  follow sum_typ_defn = follow typ_defn_body
+  follow sum_typ_branch = follow sum_typ_defn
+  follow typ = Equal | Eqarrow | Lparen | End | With | first term | follow typ_defn_body | follow sum_typ_branch | follow simple_term | follow simple_pat | follow sigture | follow decl
+  follow typ_ap = follow typ
+  follow simple_typ = follow typ_ap
+  follow modl_proj = Name | Big_name
+  follow modl_proj' = ?
+  follow term = follow defn
+  follow simple_term = ?
+  follow simple_pats = Equal | Eqarrow | Colon
+  follow simple_pat = first simple_pat | follow simple_pat
+  follow pat = Equal | Rparen | Colon | Eqarrow
+  follow match_cases = follow simple_term
+  follow match_case = Bar | follow match_cases
+  follow sigture = Equal | Rparen | follow defn | follow decl | follow simple_modl
+  follow sigture' = With | follow sigture
+  follow path = Equal
+  follow decls = End
+  follow decl = first decl | follow decls
+
+
+  first defns = epsilon | Infix | Type | Pat | Val | Fun | Signature | Module | Include
+  first defn = Infix | Type | Pat | Val | Fun | Signature | Module | Include
+  first typ_args = epsilon | Name
+  first typ_defn_body = Bar | Big_name | Lparen | Name | Arrow | Big_name | Lparen
+  first sum_typ_defn = Big_name
+  first sum_typ_branch = Big_name
+  first typ = Lparen | Name | Arrow | Big_name | Lparen
+  first typ_ap = Name | Arrow | Big_name | Lparen
+  first simple_typ = Name | Arrow | Big_name | Lparen
+  first modl_proj = Big_name
+  first modl_proj' = epsilon | Big_name
+  first term = Name | Big_name | Fn | Lbrace | Number | String | Built_in | Let | Lparen
+  first simple_term = Name | Big_name | Fn | Lbrace | Number | String | Built_in | Let | Lparen
+  first simple_pats = Wild | Name | Big_name | Lbrace | Number | String | Lparen
+  first simple_pat = Wild | Name | Big_name | Lbrace | Number | String | Lparen
+  first pat = first tag | Wild | Name | Big_name | Lbrace | Number | String | Lparen
+  first match_cases = first tag | Wild | Name | Big_name | Lbrace | Number | String | Lparen
+  first match_case = first tag | Wild | Name | Big_name | Lbrace | Number | String | Lparen
+  first sigture = Big_name | Sig
+  first sigture' = Big_name | Sig
+  first path = ?
+  first decls = epsilon | Infix | Infix | Type | Pat | Val | Signature | Module | Include
+  first decl = Infix | Infix | Type | Pat | Val | Signature | Module | Include
+  first modl = Big_name | Mod | Lparen
+  first simple_modl = Big_name | Mod | Lparen
+
+  follow defns = In | End
+  follow defn = first defn | follow defns
+  follow typ_args = Equal | follow decl
+  follow typ_defn_body = follow defn
+  follow sum_typ_defn = follow typ_defn_body
+  follow sum_typ_branch = follow sum_typ_defn
+  follow typ = Equal | Eqarrow | Lparen | End | With | Rparen | follow typ_defn_body | follow sum_typ_branch | follow simple_term | follow simple_pat | follow sigture | follow decl
+  follow typ_ap = follow typ
+  follow simple_typ = follow typ_ap
+  follow modl_proj = Name | Big_name
+  follow modl_proj' = Name | Big_name
+  follow term = follow defn
+  follow simple_term = ?
+  follow simple_pats = Equal | Eqarrow | Colon
+  follow simple_pat = ?
+  follow pat = Equal | Rparen | Colon | Eqarrow
+  follow match_cases = follow simple_term
+  follow match_case = Bar | follow match_cases
+  follow sigture = Equal | Rparen | follow defn | follow decl | follow simple_modl
+  follow sigture' = With | follow sigture
+  follow path = Equal
+  follow decls = End
+  follow decl = first decl | follow decls
+*)
+
+  fun parse tokens =
+    let val { defns, Nil } = parse_defns tokens in
+      defns
+    end
+
+  (* CR wduff: This is wrong except in the top-level case. *)
+  fun parse_defns tokens =
+    match tokens with
+    | Nil => { Nil, Nil }
+    | Cons _ =>
+      let
+        val { defn, tokens' } = parse_defn tokens
+        val { defns, tokens'' } = parse_defns tokens'
+      in
+        { Cons { defn, defns }, tokens'' }
+      end
+    end
+
+  fun parse_defn tokens =
+    let
+      val (defn, tokens') =
+        (* CR wduff: open Token? *)
+        (* CR wduff: Reduce the ridiculous usage of ' once shadowing works. *)
+        match tokens with
+        | Cons { Token.Infix, Cons { Token.Type, Cons { Token.Name typ_var, tokens' } } } =>
+          { Unbound.Defn.InfixTyp typ_var, tokens' }
+        | Cons { Token.Infix, Cons { Token.Name term_var, tokens' } } =>
+          { Unbound.Defn.InfixTerm term_var, tokens' }
+        | Cons { Token.Type, Cons { Token.Name typ_var, tokens' } } =>
+          let
+            val { typ_args, Cons { Token.Equal, tokens'' } } = parse_typ_args tokens'
+            val { typ_defn_body, tokens''' } = parse_typ_defn_body tokens''
+          in
+            match typ_defn_body with
+            | Alias typ => { Unbound.Defn.TypAlias { typ_var, typ_args, typ }, tokens''' }
+            | Sum cases => { Unbound.Defn.SumTyp { typ_var, typ_args, cases }, tokens''' }
+            end
+          end
+        | Cons { Token.Pat, Cons { Token.Name tag_var, Cons { Token.Equal, tokens' } } } =>
+          let val { term, tokens'' } = parse_term tokens' in
+            { Unbound.Defn.Tag { tag_var, None, Unbound.Tag.Destr term }, tokens'' }
+          end
+        | Cons { Token.Pat, Cons { Token.Name tag_var, Cons { Token.Colon, tokens' } } } =>
+          let val { typ, tokens'' } = parse_typ tokens' in
+            match tokens'' with
+            | Cons { Token.Equal, tokens''' } =>
+              let val { term, tokens'''' } = parse_term tokens''' in
+                Unbound.Defn.Tag { tag_var, Some (typ, None), Unbound.Tag.Destr term }
+              end
+            | Cons { Token.Eqarrow, tokens''' } =>
+              let
+                val { typ', Cons { Token.Equal, tokens'''' } } = parse_typ tokens'''
+                val { term, tokens''''' } = parse_term tokens''''
+              in
+                {
+                  Unbound.Defn.Tag { tag_var, Some (typ, typ'), Unbound.Tag.Destr term },
+                  tokens''''''
+                }
+              end
+          end
+        | Cons { Token.Val, tokens' } =>
+          let
+            val { pat, Cons { Token.Equal, tokens'' } } = parse_pat tokens'
+            val { term, tokens''' } = parse_term tokens''
+          in
+            { Unbound.Defn.Val { pat, term }, tokens''' }
+          end
+        | Cons { Token.Fun, Cons { Token.Name term_var, tokens' } } =>
+          let val { args, tokens'' } = parse_simple_pats tokens' in
+            match tokens'' with
+            | Cons { Token.Equal, tokens''' } =>
+              let val { body, tokens'''' } = parse_term tokens''' in
+                Unbound.Defn.Fun { term_var, args, None, body }
+              end
+            | Cons { Token.Colon, tokens''' } =>
+              let
+                val { result_typ, Cons { Equal, tokens'''' } } = parse_typ tokens'''
+                val { body, tokens''''' } = parse_term tokens''''
+              in
+                Unbound.Defn.Fun { term_var, args, Some result_typ, body }
+              end
+            end
+          end
+        | Cons { Token.Signature, Cons { Token.Big_name sigture_var, Cons { Token.Equal, tokens' } } } =>
+          let val { sigture, tokens'' } = parse_sigture tokens' in
+            { Unbound.Defn.Sigture { sigture_var, sigture }, tokens'' }
+          end
+        | Cons { Token.Module, Cons { Token.Big_name modl_var, tokens' } } =>
+          match tokens'' with
+          | Cons { Token.Equal, tokens'' } =>
+            let val { modl, tokens''' } = parse_modl tokens'' in
+              { Unbound.Defn.Modl { modl_var, None, None, modl }, tokens''' }
+            end
+          | Cons { Token.Colon, tokens'' } =>
+            let
+              val { sigture, Cons { Token.Equal, tokens''''' } } = parse_sigture tokens''''
+              val { modl, tokens'''''' } = parse_modl tokens'''''
+            in
+              { Unbound.Defn.Modl { modl_var, None, Some sigture, modl }, tokens'''''' }
+            end
+          (* CR wduff: Allow modules with more than one argument. *)
+          | Cons { Token.Lparen, Cons { Token.Big_name arg_var, Cons { Token.Colon, tokens'' } } } =>
+            let val { arg_sigture, Cons { Rparen, tokens''' } } = parse_sigture tokens'' in
+            match tokens''' with
+            | Cons { Token.Equal, tokens'''' } =>
+              let val { body, tokens''''' } = parse_modl tokens'''' in
+                {
+                  Unbound.Defn.Modl { modl_var, Some { arg_var, arg_sigture }, None, body },
+                  tokens''''''
+                }
+              end
+            | Cons { Token.Colon, tokens'''' } =>
+              let
+                val { result_sigture, Cons { Token.Equal, tokens''''' } } = parse_sigture tokens''''
+                val { body, tokens'''''' } = parse_modl tokens'''''
+              in
+                {
+                  Unbound.Defn.Modl
+                    { modl_var, Some { arg_var, arg_sigture }, Some result_sigture, body },
+                  tokens''''''
+                }
+              end
+            end
+          end
+        | Cons { Token.Include, tokens' } =>
+          let val { modl, tokens'' } = parse_modl tokens' in
+            { Unbound.Defn.Include modl, tokens'' }
+          end
+        end
+    in
+      { with_positions defn, tokens' }
+    end
+
+  fun parse_typ_args tokens =
+    match tokens with
+    | Cons { Name typ_var, tokens' } =>
+      let { typ_args, tokens'' } = parse_typ_args tokens' in
+        { Cons { typ_var, typ_args }, tokens'' }
+      end
+    | _ =>
+      { Nil, tokens }
+    end
+
+  (* CR wduff: Allow sum types with no cases? *)
+  fun parse_typ_defn_body tokens =
+    match tokens with
+    | Cons { Token.Bar, tokens' } => parse_sum_typ_defn tokens'
+    (* CR wduff: Simplify with an or pattern. *)
+    | Cons { Token.Big_name _, Cons { Token.Of, _ } } => parse_sum_typ_defn tokens
+    | Cons { Token.Big_name _, Cons { Token.Bar, _ } } => parse_sum_typ_defn tokens
+    | _ =>
+      let val { typ, tokens'' } = parse_typ tokens in
+        { Alias, typ, tokens'' }
+      end
+    end
+
+  fun parse_sum_typ_defn tokens =
+    let val { sum_typ_branch, tokens' } = parse_sum_typ_branch tokens in
+    match tokens' with
+    | Cons { Token.Bar, tokens'' } =>
+      let val { sum_typ_defn, tokens''' } = parse_sum_typ_defn tokens'' in
+        { Cons { sum_typ_branch, sum_typ_defn }, tokens''' }
+      end
+    | _ => { sum_typ_branch, tokens' }
+    end
+
+  fun parse_sum_typ_branch tokens =
+    match tokens with
+    | Cons { Token.Big_name constr_name, Cons { Token.Of, tokens' } } =>
+      let val { typ, tokens'' } = parse_typ tokens' in
+        { { constr_name, Some typ }, tokens'' }
+      end
+    | Cons { Token.Big_name constr_name, tokens' } =>
+      { { constr_name, None }, tokens' }
+    end
+
+  fun parse_typ tokens =
+    match tokens with
+    | Cons { Token.Lparen, Cons { Token.Name typ_var, Cons { Token.Colon, Cons { Token.Type, Cons { Token.Rparen, Cons { Token.Arrow, tokens' } } } } } } =>
+      let val { typ, tokens'' } = parse_typ typ in
+        Unbound.Typ.Forall { typ_var, typ }
+      end
+    | _ =>
+      let val { typ_ap, tokens' } = parse_typ_ap tokens in
+        match typ_ap with
+        | Nil => assert false
+        | Cons { typ, Nil } = typ
+        | _ => Unbound.Typ.Ap typ_ap
+      end
+    end
+
+  fun parse_typ_ap tokens =
+    let val { typ, tokens' } = parse_simple_typ tokens in
+      (* CR wduff: What do we do here? We can hopefully use 1 lookahead token to determine whether
+         the next thing is a type, but that only works if a type is never followed by the relevant
+         tokens. Check whether that holds. *)
+      failwith "unimpl"
+    end
+
+  fun parse_simple_typ tokens =
+    match tokens with
+    | Cons { Token.Name typ_var, tokens' } => { Unbound.Typ.Var typ_var, tokens' }
+    | Cons { Token.Arrow, tokens' } => { Unbound.Typ.Var "->", tokens' }
+    | Cons { Token.Big_name _, _ } =>
+      let val { modl, Cons { Token.Name typ_field, tokens' } } = parse_modl_proj tokens in
+        { Unbound.Typ.Modl_proj { modl, typ_field }, tokens' }
+      end
+    | Cons { Token.Lparen, tokens' } =>
+      let val { typ, Cons { Token.Rparen, tokens'' } } = parse_typ tokens' in
+        { typ, tokens'' }
+      end
+    end
+
+  fun parse_modl_proj tokens =
+    (* CR wduff: parse_modl_proj', check that the list is non-empty, then convert it to a
+       [Unbound.Modl.t]. *)
+    failwith "unimpl"
+
+  fun parse_modl_proj' tokens =
+    match tokens with
+    | Cons { Token.Big_name modl_var, Cons { Token.Dot, tokens' } } =>
+      let val { modl_proj, tokens'' } = parse_modl_proj tokens' in
+        { Cons { modl_var, modl_proj }, tokens'' }
+      end
+    | _ =>
+      { Nil, tokens }
+    end
+
+  fun parse_term tokens =
+    (* CR wduff: Some nonsense similar to the type case to deal with application. *)
+    failwith "unimpl"
+
+  fun parse_simple_term tokens =
+    match tokens with
+    | Cons { Token.Name term_var, tokens' } =>
+      { Unbound.Term.Var term_var, tokens' }
+    | Cons { Big_name _, Cons { Token.Dot, _ } } =>
+      let val { modl, Cons { Token.Name term_field, tokens' } } = parse_modl_proj tokens in
+        (* CR wduff: What about a projection of a constructor out of a module? *)
+        { Unbound.Typ.Modl_proj { modl, term_field }, tokens' }
+      end
+    | Cons { Big_name term_var,  tokens' } =>
+      { Unbound.Term.Var term_var, tokens' }
+    | Cons { Token.Fn, tokens' } =>
+      let val { args, tokens'' } = parse_simple_pats tokens' in
+        match tokens'' with
+        | Cons { Eqarrow, tokens''' } =>
+          let val { body, Cons { Token.End, tokens'''' } } = parse_term tokens''' in
+            { Unbound.Term.Fun { args, None, body }, tokens'''' }
+          end
+        | Cons { Colon, tokens''' } =>
+          let
+            val { result_typ, Cons { Token.Eqarrow, tokens'''' } } = parse_typ tokens'''
+            val { body, Cons { Token.End, tokens''''' } } = parse_term tokens''''
+          in
+            { Unbound.Term.Fun { args, Some result_typ, body }, tokens''''' }
+          end
+        end
+      end
+    | Cons { Token.Lbrace, tokens' } =>
+    | Cons { Token.Match, tokens' } =>
+      let val { term, tokens'' } = parse_term tokens' in
+        match tokens'' with
+        (* CR wduff: Simplify with an or pattern. *)
+        | Cons { Token.With, Cons { Token.Bar, tokens''' } } =>
+          let val { cases, tokens'''' } = parse_match_cases tokens''' in
+            { Unbound.Term.Match { term, cases }, tokens'''' }
+          end
+        | Cons { Token.With, tokens''' } =>
+          let val { cases, tokens'''' } = parse_match_cases tokens''' in
+            { Unbound.Term.Match { term, cases }, tokens'''' }
+          end
+        end
+      end
+    | Cons { Token.Number number, tokens' } =>
+      { Unbound.Term.Number number, tokens' }
+    | Cons { Token.String string, tokens' } =>
+      { Unbound.Term.String string, tokens' }
+    | Cons { Token.Built_in, Cons { Token.String built_in_name, Cons { Token.Colon, tokens' } } } =>
+      let val { typ, Cons { Token.End, tokens'' } } = parse_typ tokens' in
+        { Unbound.Term.Built_in { built_in_name, typ }, tokens'' }
+      end
+    | Cons { Token.Let, tokens' } =>
+      let
+        val { defns, Cons { Token.In, tokens'' } } = parse_defns tokens'
+        val { term, Cons { Token.End, tokens''' } } = parse_term tokens''
+      in
+        Unbound.Term.Let { defns, term }
+      end
+    | Cons { Token.Lparen, tokens' } =>
+      let val { term, tokens'' } = parse_term tokens' in
+        match tokens'' with
+        | Cons { Rparen, tokens''' } =>
+          { term, tokens''' }
+        | Cons { Token.Colon, tokens''' } =>
+          let val { typ, tokens'''' } = parse_typ tokens''' in
+            Unbound.Term.Ascribe { term, typ }
+          end
+        end
+      end
+    end
+
+  fun parse_simple_pats tokens =
+    (* CR wduff: Some nonsense to deal with sequencing. *)
+    failwith "unimpl"
+
+  fun parse_simple_pat tokens =
+    match tokens with
+    | Cons { Token.Wild, tokens' } =>
+      { Unbound.Pat.Wild, tokens' }
+    | Cons { Token.Name term_var, tokens' } =>
+      { Unbound.Pat.Var term_var, tokens' }
+    | Cons { Token.Big_name _, Cons { Token.Dot, _ } } =>
+      let val { modl, Cons { Token.Name tag_field, tokens' } } = parse_modl_proj tokens in
+        { Unbound.Pat.Modl_proj { modl, tag_field }, tokens' }
+      end
+      { Unbound.Pat.Tag (Unbound.Tag.Var tag_var), tokens' }
+    | Cons { Token.Big_name tag_var, tokens' } =>
+      { Unbound.Pat.Tag (Unbound.Tag.Var tag_var), tokens' }
+    | Cons { Token.Lbrace, tokens' } =>
+    | Cons { Token.Number number, tokens' } =>
+      { Unbound.Pat.Number number, tokens' }
+    | Cons { Token.String string, tokens'  } =>
+      { Unbound.Pat.String string, tokens' }
+    | Cons { Token.Lparen, tokens' } =>
+      let val { pat, tokens'' } = parse_pat tokens' in
+        match tokens'' with
+        | Cons { Token.Rparen, tokens''' } =>
+          { pat, tokens''' }
+        | Cons { Token.Colon, tokens''' } =>
+          let val { typ, tokens'''' } = parse_typ tokens''' in
+            Unbound.Pat.Ascribe { pat, typ }
+          end
+      end
+    end
+
+  fun parse_pat tokens =
+    (* CR wduff: Some nonsense to deal with sequencing. *)
+    failwith "unimpl"
+
+  fun parse_match_cases tokens =
+    let val { match_case, tokens' } = parse_match_case tokens in
+      match tokens' with
+      | Cons { Token.Bar, tokens'' } =>
+        let val { match_cases, tokens''' } = parse_match_cases tokens'' in
+          { Cons { match_case, match_cases }, tokens''' }
+        end
+      | _ =>
+        { Cons { match_case, Nil }, tokens' }
+      end
+    end
+
+  fun parse_match_case tokens =
+    let
+      val { pat, Cons { Token.Eqarrow, tokens' } } = parse_pat tokens
+      val { term, tokens'' } = parse_term tokens'
+    in
+      { { pat, term }, tokens'' }
+    end
+
+  fun parse_sigture tokens =
+    parse_with_types (parse_sigture' tokens)
+
+  fun parse_sigture' tokens =
+    match tokens with
+    | Cons { Token.Big_name _, Cons { Token.Dot, _ } } =>
+      let val { modl, Cons { Big_name sigture_field, tokens' } } = parse_modl_proj tokens in
+        { Unbound.Sigture.Modl_proj { modl, sigture_field }, tokens' }
+      end
+    | Cons { Token.Big_name sigture_var, tokens' } =>
+      { Unbound.Sigture.Var sigture_var, tokens' }
+    | Cons { Token.Sig, tokens' } =>
+      let val { decls, Cons { Token.End, tokens'' } } = parse_decls tokens' in
+        { T.Sigture.Body decls, tokens'' }
+      end
+
+  fun parse_with_types { sigture, tokens } =
+    match tokens with
+    | Cons { Token.With, Cons { Token.Type, tokens' } } =>
+      let
+        val { path, Cons { Token.Equal, tokens'' } } = parse_path tokens'
+        val { typ, tokens''' } = parse_typ tokens''
+      in
+        parse_with_types { Unbound.Sigture.With_type { sigture, path, typ }, tokens''' }
+      end
+    | _ =>
+      sigture
+    end
+
+  fun parse_path tokens =
+    failwith "unimpl"
+
+  fun parse_decls tokens =
+    match token with
+    | Cons { Token.End, tokens' } =>
+      (* CR wduff: This is fragile. It relies on the fact that decls is always followed by "end". *)
+      { Nil, tokens' }
+    | _ =>
+      let
+        val { decl, tokens' } = parse_decl tokens
+        val { decls, tokens'' } = parse_decls tokens'
+      in
+        { Cons { decl, decls }, tokens'' }
+      end
+    end
+
+  fun parse_decl tokens =
+    match tokens with
+    | Cons { Token.Infix, Cons { Token.Type, Cons { Token.Name typ_var, tokens' } } } =>
+      { Unbound.Decl.InfixTyp typ_var, tokens' }
+    | Cons { Token.Infix, Cons { Token.Name term_var, tokens' } } =>
+      { Unbound.Decl.InfixTerm term_var, tokens' }
+    | Cons { Token.Type, Cons { Token.Name typ_var, tokens' } } =>
+      let val { typ_args, tokens'' } = parse_typ_args tokens' in
+        match tokens'' with
+        | Cons { Token.Equal, tokens''' } =>
+          let val { typ, tokens'''' } = parse_typ tokens''' in
+            { Unbound.Decl.Typ { typ_var, typ_args, typ }, tokens'''' }
+          end
+        | _ =>
+          { Unbound.Decl.Typ { typ_var, typ_args, None }, tokens'' }
+      end
+    | Cons { Token.Pat, Cons { Token.Big_name tag_var, Cons { Token.Colon, tokens' } } } =>
+      let val { typ, tokens'' } = parse_typ tokens in
+        match tokens'' with
+        | Cons { Token.Eqarrow, tokens''' } =>
+          let val { typ', tokens'''' } = parse_typ tokens''' in
+            { Unbound.Decl.Tag { tag_var, typ, Some typ' } , tokens'''' }
+          end
+        | _ =>
+          { Unbound.Decl.Tag { tag_var, typ, None } , tokens'' }
+        end
+      end
+    | Cons { Token.Val, tokens' } =>
+      let
+        (* CR wduff: Use an or pattern. *)
+        (* CR wduff: The naming issue here is annoying. *)
+        val { term_var, tokens'' } =
+          match tokens' with
+          | Cons { Token.Name term_var, tokens_ } =>
+            { term_var, tokens_ }
+          | Cons { Token.Big_name term_var, tokens_ } =>
+            { term_var, tokens_ }
+          end
+        val { typ, tokens''' } =
+          parse_typ tokens''
+      in
+        { Unbound.Decl.Val { term_var, typ }, tokens''' }
+      end
+    | Cons { Token.Signature, Cons { Token.Big_name sigture_var, Cons { Token.Equal, token' } } =>
+      let val { sigture, token'' } = parse_sigture in
+        { Unbound.Decl.Sigture { sigture_var, sigture }, token'' }
+      end
+    | Cons { Token.Module, Cons { Token.Big_name modl_var, tokens' } } =>
+      match tokens' with
+      | Cons { Token.Colon, tokens'' } =>
+        let val { result_sigture, tokens''' } = parse_sigture tokens'' in
+          Unbound.Decl.Modl { modl_var, None, result_sigture }
+        end
+      | Cons { Token.Lparen, Cons { Token.Big_name arg_var, Cons { Token.Colon, tokens'' } } } =>
+        let
+          val { arg_sigture, Cons { Token.Rparen, Cons { Token.Colon, tokens''' } } } =
+            parse_sigture tokens''
+          val { result_sigture, tokens'''' } =
+            parse_sigture tokens'''
+        in
+          {
+            Unbound.Decl.Modl { modl_var, Some { arg_var, arg_sigture }, result_sigture },
+            tokens''''
+          }
+        end
+      end
+    | Cons { Token.Include, Cons { modl, tokens' } } =>
+      let val { modl, tokens'' } = parse_modl tokens' in
+        { Unbound.Decl.Include modl, tokens'' }
+      end
+    end
+
+  fun parse_modl tokens =
+    failwith "unimpl"
+
+  fun parse_simple_modl tokens =
+    match tokens with
+    | Cons { Token.Big_name _, Cons { Token.Dot, _ } } =>
+      let val { modl, Cons { Big_name modl_field, tokens' } } = parse_modl_proj tokens in
+        { Unbound.Sigture.Modl_proj { modl, modl_field }, tokens' }
+      end
+    | Cons { Token.Big_name modl_var, tokens' } =>
+      { Unbound.Modl.Var modl_var, tokens' }
+    | Cons { Token.Mod, tokens' } =>
+      let val { defns, Cons { Token.End, tokens'' } } = parse_defns tokens' in
+        { Unbound.Modl.Body defns, tokens'' }
+      end
+    | Cons { Token.Lparen, tokens' } =>
+      let val { modl, tokens'' } = parse_modl tokens' in
+        match tokens'' with
+        | Cons { Token.Rparen, tokens''' } =>
+          { modl, tokens''' }
+        | Cons { Token.Colon, tokens''' } =>
+          let val { sigture, tokens'''' } = parse_sigture tokens''' in
+            { Unbound.Modl.Ascribe { modl, sigture }, tokens'''' }
+          end
+        end
+      end
+    end
+end

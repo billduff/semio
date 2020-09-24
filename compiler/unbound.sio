@@ -1,0 +1,102 @@
+module Unbound : Unbound = mod
+  module Typ = mod
+    type untagged =
+      | Var of Source_code_position.t * String.t
+      | Modl_proj of Modl.t * String.t
+      | Ap of List.t Typ.t
+      | Record of List.t (String.t * Typ.t)
+      | Forall of String.t * Typ.t
+
+    type t = With_positions.t untagged
+  end
+
+  module Decl = mod
+    type untagged =
+      | InfixTyp of String.t
+      | InfixTerm of String.t
+      | Typ of String.t * List.t String.t * Optional.t Typ.t
+      | Tag of String.t * Typ.t * Optional.t Typ.t
+      | Val of String.t * Typ.t
+      | Sigture of String.t * Sigture.t
+      | Modl of String.t * Sigture.t
+      | Include of Sigture.t
+
+    type t = With_positions.t untagged
+  end
+
+  module Sigture = mod
+    type untagged =
+      | Var of Source_code_position.t * String.t
+      | Modl_proj of Modl.t * String.t
+      | Arrow of (String.t * Sigture.t) * Sigture.t
+      | Body of List.t Decl.t
+
+    type t = With_positions.t untagged
+  end
+
+  module Tag = mod
+    type untagged =
+      | Var of Source_code_position.t * String.t
+      | Modl_proj of Modl.t * String.t
+      | Destr of Term.t
+
+    type t = With_positions.t untagged
+  end
+
+  module Pat = mod
+    type untagged =
+      | Wild
+      | Var of Source_code_position.t * String.t
+      | Record of List.t (String.t * Pat.t)
+      | Tag of Tag.t * Optional.t Pat.t
+      | Number of Number.t
+      | String of String.t
+      | Ascribe of Pat.t * Typ.t
+
+    type t = With_positions.t untagged
+  end
+
+  module Term = mod
+    type untagged =
+      | Var of Source_code_position.t * String.t
+      | Modl_proj of Modl.t * String.t
+      | Fun of List.t Pat.t * Optional.t Typ.t * Term.t
+      | Ap of List.t Term.t
+      | Record of List.t (String.t * Term.t)
+      | Match of Term.t * List.t (Pat.t * Term.t)
+      | Number of Number.t
+      | String of String.t
+      | Built_in of String.t * Typ.t
+      | Let of List.t Defn.t * Term.t
+      | Ascribe of Term.t * Typ.t
+
+    type t = With_positions.t untagged
+  end
+
+  module Defn = mod
+    type untagged =
+      | InfixTyp of String.t
+      | InfixTerm of String.t
+      | TypAlias of String.t * List.t String.t * Typ.t
+      | SumTyp of String.t * List.t String.t * List.t (String.t * Optional.t Typ.t)
+      | Tag of String.t * Optional.t (Typ.t * Optional.t Typ.t) * Tag.t
+      | Val of Pat.t * Term.t
+      | Fun of String.t * List.t Pat.t * Optional.t Typ.t * Term.t
+      | Sigture of String.t * Sigture.t
+      | Modl of String.t * Optional.t (String.t * Sigture.t) * Optional.t Sigture.t * Modl.t
+      | Include of Modl.t
+
+    type t = With_positions.t untagged
+  end
+
+  module Modl = mod
+    type untagged =
+      | Var of Source_code_position.t * String.t
+      | Modl_proj of Modl.t * String.t
+      | Ap of Modl.t * Modl.t
+      | Ascribe of Modl.t * Sigture.t
+      | Body of List.t Defn.t
+
+    type t = With_positions.t untagged
+  end
+end

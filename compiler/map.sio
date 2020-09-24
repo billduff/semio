@@ -1,0 +1,222 @@
+(* CR-soon wduff: Collapse [Empty] and [One] nodes into their parents. *)
+
+module Make (Key : Comparable) = mod
+  type tree a =
+    | Empty
+    (* CR wduff: This should be [tree a]. Why does this compile? *)
+    | One of a
+    | Two of prod [ tree a, Key.t, a, tree a ]
+
+  type t a = tree a
+
+  val empty = Empty
+
+  fun singleton key data = Two { Empty, key, data, Empty }
+
+  type add_tree a =
+    | Tree of tree a
+    | Leaf of a
+    | Three of prod [ tree a, Key.t, a, tree a, Key.t, a, tree a ]
+
+  fun find t key =
+    match t with
+    | Empty => None
+    | One t' => find t' key
+    | Two { left, key', data, right } =>
+      match Key.compare key key' with
+      | Equal => data
+      | Less => find left key
+      | Greater => find right key
+      end
+    end
+
+  fun set t key data =
+    match
+      match t with
+      | Empty => Tree (Two { Empty, key, data, Empty })
+      | One t' =>
+        match set t' key data with
+        | Tree t => Tree (One t)
+        | Leaf { key'', data'' } => Tree (Two { Empty, key'', data'', Empty })
+        | Three { left, left_key, left_data, middle, right_key, right_data, right } =>
+          Tree (Two { Two { left, left_key, left_data, middle }, right_key, right_data, One right })
+        end
+      | Two { left, key', data', right } =>
+        match Key.compare key key' with
+        | Equal => Tree (Two { left, key, data, right })
+        | Less =>
+          match set left key data with
+          | Tree left' => Tree (Two { left', key', data', right })
+          | Leaf { left_key, left_data } =>
+            Three { Empty, left_key, left_data, Empty, key' data', Empty }
+          | Three { left_left, left_left_data, left_middle, left_right_data, left_right } =>
+            match right with
+            | One right' =>
+              Tree
+                (Two
+                  {
+                    Two { left_left, left_left_key, left_left_data, left_middle },
+                    left_right_key,
+                    left_right_data,
+                    Two { left_right, key', data', right' }
+                  })
+            | Two _ =>
+              Three
+                {
+                  Two { left_left, left_left_key, left_left_data, left_middle },
+                  left_right_key,
+                  left_right_data,
+                  One left_right,
+                  key',
+                  data',
+                  right
+                }
+            end
+          end
+        | Greater =>
+          match set right key data with
+          | Tree right' => Tree (Two { { left, data }, right' })
+          | Leaf { right_key, right_data } =>
+            Three { Empty, key', data', Empty, right_key, right_data, Empty }
+          | Three { right_left, right_left_data, right_middle, right_right_data, right_right } =>
+            match left with
+            | One left' =>
+              Tree
+                (Two
+                  {
+                    Two { left', key', data', right_left },
+                    right_left_key,
+                    right_left_data,
+                    Two { right_middle, right_right_key, right_right_data, right_right }
+                  })
+            | Two _ =>
+              Three
+                {
+                  left,
+                  key',
+                  data',
+                  right_left,
+                  right_left_key,
+                  right_left_data,
+                  Two { right_middle, right_right_key, right_right_data, right_right }
+                }
+            end
+          end
+        end
+      end
+    with
+    | Tree t' => t'
+    | Leaf { key', data' } => Two { Empty, key', data', Empty }
+    | Three { left, left_key, left_data, middle, right_key, right_data, right } =>
+      Two { Two { left, left_key, left_data, middle }, right_key, right_data, One right }
+    end
+
+  fun rebalance_left_may_have_shrunk { left, key, data, right } =
+    match left with
+    | One left' =>
+      match right with
+      | Empty => assert false
+      | One right' => One (Two { left', key, data, right' })
+      | Two _ => Two { left, key, data, right }
+      end
+    | { One (One left'), _ } =>
+      match right with
+      (* CR wduff: Make these match cases disjoint. *)
+      | Two { One right_left, right_key, right_data, right_right } =>
+        One (Two { Two { left', key, data, right_left }, right_key, right_data, right_right })
+      | Two
+          {
+            Two { right_left_left, right_left_key, right_left_data, right_left_right },
+            right_key,
+            right_data,
+            One right_right
+          } =>
+        One
+          (Two
+             {
+               Two { left', key, data, right_left_left },
+               right_left_key,
+               right_left_data,
+               Two { right_left_right, right_key, right_data, right_right }
+             })
+      | Two { right_left, right_key, right_data, right_right } =>
+        Two { Two { One left', key, data, right_left }, right_key, right_data, One right_right }
+      | _ => assert false
+      end
+    end
+
+  fun rebalance_right_may_have_shrunk { left, key, data, right } =
+    match right with
+    | One right' =>
+      match left with
+      | Empty => assert false
+      | One left' => One (Two { left', key, data, right' })
+      | Two _ => Two { left, key, data, right }
+      end
+    | { One (One right'), _ } =>
+      match left with
+      (* CR wduff: Make these match cases disjoint. *)
+      | Two { left_left, left_key, left_data, One left_right } =>
+        One (Two { left_left, left_key, left_data, Two { left_right, key, data, right' } })
+      | Two
+          {
+            One left_left
+            left_key,
+            right_key,
+            Two { left_right_left, left_right_key, left_right_data, left_right_right }
+          } =>
+        One
+          (Two
+             {
+               Two { left_left, left_key, left_data, left_right_left },
+               left_right_key,
+               left_right_data,
+               Two { left_right_right, key, data, right' }
+             }
+      | Two { left_left, left_key, left_data, left_right } =>
+        Two { One left_left, left_key, left_data, Two { left_right, key, data, One right' } }
+      | _ => assert false
+      end
+    end
+
+  fun find_and_remove_min t =
+    match t with
+    | Empty => None
+    | One t' =>
+      match find_and_remove_min t' with
+      | None => None
+      | Some { key, data, t'' } =>
+        Some { key, data, One t'' }
+      end
+    | Two { left, key, data, right } =>
+      match find_and_remove_min left with
+      | None => Some { key, data, One right }
+      | Some { key', data', left' } =>
+        Some { key', data', rebalance_left_may_have_shrunk { left', key, data, right } }
+      end
+    end
+
+  fun remove t key =
+    match
+      match t with
+      | Empty => Empty
+      | One t' => One (remove t' key)
+      | Two { left, key', data, right } =>
+        match Key.compare key key' with
+        | Less => rebalance_left_may_have_shrunk { remove left key, key', data, right }
+        | Greater => rebalance_right_may_have_shrunk { left, key', data, remove right key }
+        | Equal =>
+          match find_and_remove_min t with
+          | None => One left
+          | Some { key'', data', right' } =>
+            rebalance_right_may_have_shrunk { left, key'', data', right' }
+          end
+        end
+      end
+    with
+    | One t' => t'
+    (* CR wduff: Simplify this once we have as-patterns. *)
+    | Empty => Empty
+    | Two x => Two x
+    end
+end

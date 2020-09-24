@@ -1,0 +1,17 @@
+type nat = Z | S of nat
+
+val S x = S (S Z)
+
+type unit_triple = { x : unit, y : unit, z : unit }
+
+val { x = x', y = y, z = z } = { x = (), y = (), z = () }
+
+infix +
+
+fun + x'' y' =
+  match x'' with
+  | Z => y'
+  | S y'' => S (x'' + y'')
+  end
+
+fun f x'' (S y') = x'' + y'

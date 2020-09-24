@@ -1,0 +1,278 @@
+module F (T : Typed) = mod
+  (* CR wduff: Hack until exceptions exist. *)
+  fun failwith s = let val {} = print s in failwith s end
+
+  type substitution =
+    { tags : T.Tag.Var.Map.t T.Tag.t
+    , terms : T.Term.Var.Map.t T.Term.t
+    , modls : T.Modl.Var.Map.t T.Modl.t
+    }
+
+  val empty_subst =
+    { tags = T.Tag.Var.Map.empty
+    , terms = T.Term.Var.Map.empty
+    , modls = T.Modl.Var.Map.empty
+    }
+
+  fun merge {tags = tags1, terms = terms1, modls = modls1} {tags = tags2, terms = terms2, modls = modls2} =
+    { tags =
+        T.Tag.Var.Map.fold tags2 tags1
+          fn key data acc => T.Tag.Var.Map.set acc key data end
+    , terms =
+        T.Term.Var.Map.fold terms2 terms1
+          fn key data acc => T.Term.Var.Map.set acc key data end
+    , modls =
+        T.Modl.Var.Map.fold modls2 modls1
+          fn key data acc => T.Modl.Var.Map.set acc key data end
+    }
+
+  fun apply_subst {tags, terms, modls} term =
+    let
+      val term' =
+        T.Tag.Var.Map.fold tags term
+          fn key data term => T.Term.substTag data key term end
+      val term'' =
+        T.Term.Var.Map.fold terms term'
+          fn key data term => T.Term.subst data key term end
+    in
+      T.Modl.Var.Map.fold modls term''
+        fn key data term => T.Term.substModl data key term end
+    end
+
+  fun apply_subst_modl {tags, terms, modls} modl =
+    let
+      val modl' =
+        T.Tag.Var.Map.fold tags modl
+          fn key data term => T.Modl.substTag data key term end
+      val modl'' =
+        T.Term.Var.Map.fold terms modl'
+          fn key data term => T.Modl.substTerm data key term end
+    in
+      T.Modl.Var.Map.fold modls modl''
+        fn key data term => T.Modl.subst data key term end
+    end
+
+  fun eval_tag tag =
+    match tag with
+    | T.Tag.Var _ => failwith "???cannot eval free var"
+    | T.Tag.ModlProj {modl, field} =>
+      let
+        val T.Modl.Body fields = eval_modl modl
+        val Some tag' =
+          List.find_map
+            { list = fields,
+              pred =
+                fn {field', modl_field} =>
+                  match {String.equal {field, field'}, modl_field} with
+                  | {True, T.Modl_field.Tag tag''} => Some tag''
+                  | _ => None
+                  end
+                end
+            }
+      in
+        eval_tag tag'
+      end
+    | T.Tag.In i => T.Tag.In i
+    | T.Tag.Destr term => T.Tag.Destr (eval term)
+    end
+
+  fun trypat { pattern, term } =
+    match pattern with
+    | T.Pat.Wild => Some empty_subst
+    | T.Pat.Var var =>
+      Some
+        { tags = T.Tag.Var.Map.empty
+        , terms = T.Term.Var.Map.singleton var term
+        , modls = T.Modl.Var.Map.empty
+        }
+    | T.Pat.Tuple pats =>
+      let val T.Term.Tuple terms = term in
+        match Optional.all (List.map2_exn { f = trypat, list1 = pats, list2 = terms }) with
+        | None => None
+        | Some substs =>
+          Some (List.fold { list = substs, init = empty_subst, f = merge })
+        end
+      end
+    | T.Pat.Tag {tag, pattern_opt} =>
+      let
+        val term_opt =
+          match eval_tag tag with
+          | T.Tag.In {_, i} =>
+            let val T.Term.In {{_, j}, term'} = term in
+              match Number.equal {i, j} with
+              | True => Some term'
+              | False => None
+              end
+            end
+          | T.Tag.Destr tag_term =>
+            match eval (T.Term.Ap {tag_term, term}) with
+            | T.Term.In {{_, 0}, _} => None
+            | T.Term.In {{_, 1}, term'} => Some term'
+            end
+          end
+      in
+        Optional.bind term_opt
+          fn term' =>
+            match pattern_opt with
+            | None => Some empty_subst
+            | Some pattern' => trypat { pattern', term' }
+            end
+          end
+       end
+    | T.Pat.Ascribe { pattern', _ } =>
+      trypat { pattern', term }
+    end
+
+  fun eval term =
+    match term with
+    | T.Term.Var _ => failwith "???cannot eval free var"
+    | T.Term.ModlProj {modl, field} =>
+      let
+        val T.Modl.Body fields = eval_modl modl
+        val Some term' =
+          List.find_map
+            { list = fields,
+              pred =
+                fn {field', modl_field} =>
+                  match {String.equal {field, field'}, modl_field} with
+                  | {True, T.Modl_field.Val term''} => Some term''
+                  | _ => None
+                  end
+                end
+            }
+      in
+        eval term'
+      end
+    | T.Term.Fun _ => term
+    | T.Term.Ap {term1, term2} =>
+      let
+        val T.Term.Fun {{List.Cons {arg, args}, typ_opt}, term1'} = eval term1
+        val term2' = eval term2
+      in
+        match trypat { arg, term2' } with
+        | None => failwith "MatchFailure"
+        | Some subst =>
+          match args with
+          | List.Nil => eval (apply_subst subst term1')
+          | List.Cons _ => T.Term.Fun {{args, typ_opt}, apply_subst subst term1'}
+          end
+        end
+      end
+    | T.Term.Tuple terms =>
+      T.Term.Tuple (List.map { f = eval, list =  terms })
+    | T.Term.In {{n, i}, term'} =>
+      (* CR wduff: This awkward tuple nesting is because
+         of how we associate binary type operators. *)
+      T.Term.In {{n, i}, eval term'}
+    | T.Term.Match {term', cases} =>
+      let
+        val term'' = eval term'
+        fun trycases cases =
+          match cases with
+          | List.Nil => failwith "MatchFailure"
+          | List.Cons {{pati, termi}, cases} =>
+            match trypat { pati, term'' } with
+            | None => trycases cases
+            | Some subst => apply_subst subst termi
+            end
+          end
+      in
+        eval (trycases cases)
+      end
+    | T.Term.Number _ => term
+    | T.Term.String _ => term
+    | T.Term.Let {defn, term'} =>
+      let val subst = eval_defn defn in
+        eval (apply_subst subst term')
+      end
+    | T.Term.Ascribe {term, _} => eval term
+    end
+
+  fun eval_defn defn =
+    match defn with
+    | T.Defn.Typ _ => empty_subst
+    | T.Defn.Tag {var, tag} =>
+      let val tag' = eval_tag tag in
+        { tags = T.Tag.Var.Map.singleton var tag'
+        , terms = T.Term.Var.Map.empty
+        , modls = T.Modl.Var.Map.empty
+        }
+      end
+    | T.Defn.Val {pattern, term} =>
+      let val term' = eval term in
+        match trypat { pattern, term' } with
+        | None => failwith "MatchFailure"
+        | Some subst => subst
+        end
+      end
+    | T.Defn.Modl {var, modl} =>
+      let val modl' = eval_modl modl in
+        { tags = T.Tag.Var.Map.empty
+        , terms = T.Term.Var.Map.empty
+        , modls = T.Modl.Var.Map.singleton var modl'
+        }
+      end
+    end
+
+  fun eval_modl modl =
+    match modl with
+    | T.Modl.Var _ => failwith "???cannot eval free var"
+    | T.Modl.ModlProj {modl, field} =>
+      let
+        val T.Modl.Body fields = eval_modl modl
+        val Some modl' =
+          List.find_map
+            { list = fields,
+              pred =
+                fn {field', modl_field} =>
+                  match {String.equal {field, field'}, modl_field} with
+                  | {True, T.Modl_field.Modl modl''} => Some modl''
+                  | _ => None
+                  end
+                end
+            }
+      in
+        eval_modl modl'
+      end
+    | T.Modl.Fun _ => modl
+    | T.Modl.ProjFun _ => modl
+    | T.Modl.Ap {modl1, modl2} =>
+      let
+        val T.Modl.Fun {{arg_var, _}, modl1'} = eval_modl modl1
+        val modl2' = eval_modl modl2
+      in
+        eval_modl (T.Modl.subst modl2' arg_var modl1')
+      end
+    | T.Modl.ProjAp {modl1, modl2} =>
+      let
+        val T.Modl.ProjFun {{arg_var, _}, modl1'} = eval_modl modl1
+        val modl2' = eval_modl modl2
+      in
+        eval_modl (T.Modl.subst modl2' arg_var modl1')
+      end
+    | T.Modl.Ascribe {modl, _} => eval_modl modl
+    | T.Modl.Rec {{var, sigture}, modl} =>
+      let val modl' = eval_modl modl in
+        eval_modl (T.Modl.subst (T.Modl.Rec {{var, sigture}, modl'}) var modl')
+      end
+    | T.Modl.Body fields =>
+      T.Modl.Body
+        (List.map
+           { list = fields,
+             f =
+               fn {name, field} =>
+                 {name,
+                  match field with
+                  | T.Modl_field.Typ typ => T.Modl_field.Typ typ
+                  | T.Modl_field.Tag tag => T.Modl_field.Tag (eval_tag tag)
+                  | T.Modl_field.Val term => T.Modl_field.Val (eval term)
+                  | T.Modl_field.Modl modl => T.Modl_field.Modl (eval_modl modl)
+                  end}
+               end
+           })
+    | T.Modl.Let {defn, modl} =>
+      let val subst = eval_defn defn in
+        eval_modl (apply_subst_modl subst modl)
+      end
+    end
+end

@@ -1,0 +1,51 @@
+val (x : number) = 7
+
+val (y : string) = "hi"
+
+fun ident (x : unit) : unit = x
+
+val (z : number) = ident x
+
+val (_ : unit) = ()
+
+module M : sig
+  type t
+  type bool = t
+  pat True : bool
+  pat False : bool
+  val True : bool
+  val False : bool
+end = mod
+  type bool = True | False
+  type t = bool
+end
+
+val (x : M.bool) = M.True
+
+val (_ : M.bool) =
+  match x with
+  | M.True => M.False
+  | M.False => M.True
+  end
+
+type nat =
+| Z
+| S of nat
+
+val (nat_ident : nat -> nat) =
+  fn (x : nat) =>
+    match x with
+    | Z => Z
+    | S x' => S (nat_ident x')
+    end
+  end
+
+val (_ : nat) = nat_ident (S (S (S Z)))
+
+module F (X : sig type t end) : sig
+  type t = X.t
+end = mod
+  type t = X.t
+end
+
+(* module M' : sig type t end = F M ???broken because of env propagation *)

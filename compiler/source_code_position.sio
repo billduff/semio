@@ -1,0 +1,4 @@
+module Source_code_position = mod
+  (* CR wduff: Give this more structure. *)
+  type t = string
+end

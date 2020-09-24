@@ -1,0 +1,90 @@
+write core signature
+translate abbot to semio
+write binary search trees in semio
+
+
+- module system - expand and implement in typechecker and dynamics
+- imperative features
+- dependent product and function kinds
+- exhaustivenss/redundancy checking
+- infix and other syntax features
+- low level builtins
+? type inference
+
+fn <name> : <type> => <expr> end
+
+()
+
+(<expr>, <expr>{, <expr>})
+
+match <expr> with <pat> => <expr> {| <pat> => <expr>} end
+
+let {<decl>} in <expr> end
+
+(* <decl> = *)
+  val <expr-def>
+| rec val <expr-def> {and <expr-def>}
+| type <type-def>
+| rec type <type-def> {and <type-def>}
+
+(* <expr-def> = *)
+<name> {<name> : <type>} [: <type>] = <expr>
+
+(* <type-def> = *)
+<name> {<name>} = <type>
+
+fix <name> is <expr> end
+
+Inj"["<type> {+ <type>}"]""["<num >= 1>"]"
+
+<type with {'<name>}> --> Lamt '<name> -> original exp
+
+somehow insert apt, fold, and unfold when appropriate?
+
+<type> -> <type>
+
+<type> * <type> {* <type>}
+
+<type> + <type> {+ <type>}
+
+rec <name> is <type> end
+
+reserved symbols: , " ( ) [ ] : |
+reserved words: let and in end match with Inj fn is rec val _ =>
+reserved symbols in types: * +
+reserved words in types: ->
+
+modules
+type classes "t -> t for all t with SHOW"
+existential subtyping
+classed existential types
+infix operators and constructors "infix foo" "^ precedes * / precedes +"
+kind system
+type genericity
+fancy constructors, like gadts or polymorphic constructors
+extension of new type features to modules
+pattern matching
+pattern matching for types
+recursive definitions
+hiding
+explicit typing
+abstract type fields in declarations
+extensible types and kinds
+type inference
+mutables
+value restriction?
+
+kind list = fn a b => a -> (b -> a -> a) -> a
+type nil : forall a b. list a b = fn n c => n
+type cons : forall a b. b -> list a b -> list a b = fn b l n c => c b (l n c)
+type recur : forall a b. list a b -> a -> (b -> a -> a) -> a = fn n => n
+
+type prod : list type type -> type = fn l => recur l unit ( * )
+
+val zipn : forall l : list (list type type) type.
+             prod (recur args unit (fn (x, acc) => list x :: acc))
+             -> list (prod (recur args unit (fn (x, acc) => x :: acc)))
+
+val unzipn : forall l : list type.
+               list (prod l)
+               -> prod (recur args unit (fn (x, acc) => list x :: acc))

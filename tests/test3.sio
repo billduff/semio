@@ -1,0 +1,30 @@
+type t = string
+
+type u = Foo of t | Bar of unit
+
+val f = fn () => g () end
+
+val g = fn () => f () end
+
+val (x : u) = Foo ""
+
+val () =
+  match x with
+  | Foo _ => ()
+  | Bar y => y
+  | Foo _ => ()
+  end
+
+type nat = Z | S of nat
+
+val n = Z
+
+val q =
+  fn a b =>
+    match b with
+    | Z => b
+    | S b' => S (q a b')
+    end
+  end
+
+module M = mod end

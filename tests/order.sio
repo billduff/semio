@@ -1,0 +1,11 @@
+module Order : ORDER = mod
+  type t = Less | Equal | Greater
+  type order = t
+
+  fun reverse (ord : order) =
+    match ord with
+    | Less => Greater
+    | Equal => Equal
+    | Greater => Less
+    end
+end

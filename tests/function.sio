@@ -1,0 +1,22 @@
+module Function (*: FUNCTION *) = 
+mod
+
+  fun o (f : b -> c, g : a -> b) (x : a) : c  = f(g x)
+
+  fun . (f : a -> b, g : b -> g) (x : a) : c = g(f x)
+
+  fun xO (f :  a -> b, g : a -> c) (x : a) : b * c = (f x, g x)
+
+  fun *O (f : a -> b, g : c -> d) (x : a, y: c) : b * d = (f x, g y)
+
+  fun apply_fst (f : a -> b) (x : a, _ : c) = f x
+  fun apply_snd (f : a -> b) (_ : c, x : a) = f x
+  
+  fun id (x : a) : a = x
+
+  fun $ (f : a -> b, x : a) = f x
+
+  fun curry (f : (a * b) -> c) (x : a) (y : b) : c = f (x, y) 
+  fun uncurry (f : a -> b -> c) (x : a, y : b) : c = f x y 
+
+end

@@ -1,0 +1,46 @@
+module String = mod
+  type t = string
+
+  (* CR wduff: This is dumb. Just allow record type expressions *)
+  type init_arg = { length : Number.t, f : Number.t -> Char.t }
+
+  val init = built-in "string_init" : init_arg -> t end
+
+  val length = built-in "string_length" : t -> Number.t end
+
+  type unsafe_nth_arg = { string : t, n : Number.t }
+
+  val unsafe_nth = built-in "string_unsafe_nth" : unsafe_nth_arg -> Char.t end
+
+  fun equal {t1, t2} =
+    let
+      val length1 = length t1
+      val length2 = length t2
+    in
+      match Number.equal {length1, length2} with
+      | False => False
+      | True =>
+        let
+          fun loop index =
+            match Number.compare {index, length1} with
+            | Equal => True
+            | Greater => True
+            | Less =>
+              let
+                val char1 = unsafe_nth {string = t1, n = index}
+                val char2 = unsafe_nth {string = t2, n = index}
+              in
+                match Char.equal {char1, char2} with
+                | False => False
+                | True =>
+                  (* CR wduff: index + 1 *)
+                  loop index
+                end
+              end
+            end
+        in
+          loop 0
+        end
+      end
+    end
+end
