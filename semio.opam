@@ -15,6 +15,6 @@ depends: [
   "ppx_jane"
 ]
 descr: "
-Semio is a programming langauge. This package contains the ocaml-based interpreter for semio, which
+Semio is a programming language. This package contains the ocaml-based interpreter for semio, which
 is used to bootstrap the semio compiler.
 "
