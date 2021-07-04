@@ -1,5 +1,5 @@
-(alias
- (name default)
+(rule
+ (alias default)
  (deps
   (:interpret ../bin/interpret.exe)
   (:sources (glob_files *.sig) (glob_files *.sio)))

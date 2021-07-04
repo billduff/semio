@@ -48,7 +48,15 @@ module Var = struct
       raise_s [%message]
   ;;
 
-  (* CR wduff: Does this actually make sense? Is it safe to swap out the ref like this? *)
+  (* CR wduff: Does this actually make sense? Is it safe to swap out the ref like this? Same
+     question for [fold_map] below. *)
+  let map (t : 'a t) ~(f : 'a -> 'b) : 'b t =
+    match !t with
+    | Tip tip -> { contents = Tip tip }
+    | Value value ->
+      { contents = Value (f value) }
+  ;;
+
   let fold_map (t : 'a t) ~(init : 'acc) ~(f : 'acc -> 'a -> 'acc * 'b) : 'acc * 'b t =
     match !t with
     | Tip tip -> init, { contents = Tip tip }

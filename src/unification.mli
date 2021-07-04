@@ -6,7 +6,8 @@ module Var : sig
 
   val compare_tips : _ t -> _ t -> int
 
-  val fold_map : 'a t -> init:'acc -> f:('acc -> 'a -> 'acc * 'a) -> 'acc * 'a t
+  val map : 'a t -> f:('a -> 'b) -> 'b t
+  val fold_map : 'a t -> init:'acc -> f:('acc -> 'a -> 'acc * 'b) -> 'acc * 'b t
 end
 
 val newvar : unit -> _ Var.t
