@@ -1319,21 +1319,23 @@ and elab_defns' (context : Context.t) defns
        Context.Elab_creator.empty,
        Context.Fixity.empty)
     | scc :: sccs ->
-      print_s
-        [%message
-          "begin defn block"
-            (index : int)
-            ~defns:
-              (List.map scc ~f:(fun defn_index ->
-                 let defn = defn_array.(defn_index) in
-                 let string = U.Defn.to_string defn in
-                 match String.lsplit2  string ~on:'(' with
-                 | Some (string, _) -> string
-                 | None ->
-                   match String.lsplit2 string ~on:'=' with
+      if debug then begin
+        print_s
+          [%message
+            "begin defn block"
+              (index : int)
+              ~defns:
+                (List.map scc ~f:(fun defn_index ->
+                   let defn = defn_array.(defn_index) in
+                   let string = U.Defn.to_string defn in
+                   match String.lsplit2  string ~on:'(' with
                    | Some (string, _) -> string
-                   | None -> string)
-               : string list)];
+                   | None ->
+                     match String.lsplit2 string ~on:'=' with
+                     | Some (string, _) -> string
+                     | None -> string)
+                 : string list)]
+      end;
       let result =
         match scc with
         | [] -> assert false
@@ -1826,7 +1828,9 @@ and elab_defns' (context : Context.t) defns
                 }),
              Context.Fixity.merge fixity_context fixity_context')
       in
-      printf "end defn block %d\n%!" index;
+      if debug then begin
+        print_s [%message "end defn block" (index : int)]
+      end;
       result
   in
   let (defns, purity, decls, elab_context_creator, fixity_context) =

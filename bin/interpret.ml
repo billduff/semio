@@ -1,6 +1,8 @@
 open Core
 open Semio
 
+let debug = false
+
 let interpret ~filenames () =
   let ast =
     List.concat_map filenames ~f:(fun filename ->
@@ -9,11 +11,15 @@ let interpret ~filenames () =
         lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = filename };
         Parser.program Lexer.token lexbuf))
   in
-  printf !"unbound:\n%s\n\n%!"
-    (String.concat ~sep:"\n" (List.map ast ~f:(sprintf !"%{Unbound.Defn}")));
+  if debug then begin
+    printf !"unbound:\n%s\n\n%!"
+      (String.concat ~sep:"\n" (List.map ast ~f:(sprintf !"%{Unbound.Defn}")))
+  end;
   let typed = Elaborate_with_inference.translate ast in
-  (* ???other static checks *)
-  printf !"%{sexp: string * Typed.Term.t}\n%!" ("typed", typed);
+  (* CR wduff: Are there other static checks we should do? *)
+  if debug then begin
+    printf !"%{sexp: string * Typed.Term.t}\n%!" ("typed", typed)
+  end;
   match Dynamics.eval typed with
   | result ->
     printf

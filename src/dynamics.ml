@@ -5,6 +5,8 @@ open! Import
 
 open Typed
 
+let debug = false
+
 exception MatchFailure
 
 type substitution =
@@ -49,7 +51,9 @@ let apply_subst (type a) (module S : Subst_into with type t = a) subst (value : 
     ~f:(fun ~key ~data term -> S.subst Modl data key term)
 
 let rec eval_tag tag =
-  let () = printf "begin eval_tag\n%!" in
+  if debug then begin
+    printf "begin eval_tag\n%!"
+  end;
   let open Tag in
   let result =
     match out tag with
@@ -73,11 +77,15 @@ let rec eval_tag tag =
          | None -> assert false)
       | _ -> assert false
   in
-  let () = printf "end eval_tag\n%!" in
+  if debug then begin
+    printf "end eval_tag\n%!"
+  end;
   result
 
 and trypat pat term =
-  let () = printf "begin trypat\n%!" in
+  if debug then begin
+    printf "begin trypat\n%!"
+  end;
   let open Pat in
   let result =
     match pat with
@@ -129,11 +137,15 @@ and trypat pat term =
     | Number _ | String _ -> failwith "unimpl2"
     | Ascribe (pat', _) -> trypat pat' term
   in
-  let () = printf "end trypat\n%!" in
+  if debug then begin
+    printf "end trypat\n%!"
+  end;
   result
 
 and eval term =
-  let () = printf "begin eval\n%!" in
+  if debug then begin
+    printf "begin eval\n%!"
+  end;
   let open Term in
   let result =
     match out term with
@@ -235,11 +247,15 @@ and eval term =
       eval (apply_subst (module Term) subst term')
     | Ascribe (term, _) -> eval term
   in
-  let () = printf "end eval\n%!" in
+  if debug then begin
+    printf "end eval\n%!"
+  end;
   result
 
 and eval_defn defn =
-  let () = printf "begin eval_defn\n%!" in
+  if debug then begin
+    printf "begin eval_defn\n%!"
+  end;
   let open Defn in
   let (result : Modl_field.t * substitution) =
     match defn with
@@ -266,11 +282,15 @@ and eval_defn defn =
            Map.set empty_subst.modls ~key:var ~data:modl'
        })
   in
-  let () = printf "end eval_defn\n%!" in
+  if debug then begin
+    printf "end eval_defn\n%!"
+  end;
   result
 
 and eval_modl modl =
-  let () = printf "begin eval_modl\n%!" in
+  if debug then begin
+    printf "begin eval_modl\n%!"
+  end;
   let open Modl in
   let result =
     match out modl with
@@ -327,11 +347,15 @@ and eval_modl modl =
       let (_modl_field, subst) = eval_defn defn in
       eval_modl (apply_subst (module Modl) subst modl)
   in
-  let () = printf "end eval_modl\n%!" in
+  if debug then begin
+    printf "end eval_modl\n%!"
+  end;
   result
 
 and eval_defns defns =
-  let () = printf "begin eval_defns\n%!" in
+  if debug then begin
+    printf "begin eval_defns\n%!"
+  end;
   let result =
     match Defns.out defns with
     | End -> []
@@ -339,6 +363,8 @@ and eval_defns defns =
       let (modl_field, subst) = eval_defn defn in
       (name, modl_field) :: (eval_defns (apply_subst (module Defns) subst defns))
   in
-  let () = printf "end eval_defns\n%!" in
+  if debug then begin
+    printf "end eval_defns\n%!"
+  end;
   result
 ;;
