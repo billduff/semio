@@ -85,6 +85,10 @@ let rec lookup_field_in_sigture : type a. Modl.t -> Sigture.t -> a Field_sort.t 
      | Field_sort.Typ ->
        lookup_field_in_sigture modl sigture (sort : a Field_sort.t) field
      | Field_sort.Modl ->
+       (* CR wduff: This seems wrong. I think we need to strip the resulting signature of its
+          non-type components (i.e. phase-split out the compile-time component). Otherwise we risk a
+          later value or tag lookup on the returned signature giving back a type with unbound type
+          variables. *)
        lookup_field_in_sigture modl sigture sort field
      | _ -> failwith "???" )
   | Body decls -> lookup_field_in_decls modl decls sort field

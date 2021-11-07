@@ -25,8 +25,6 @@ val subkind : Context.t -> Kind.t -> Kind.t -> bool
 
 val typ_equiv : Context.t -> Typ.t -> Typ.t -> Kind.t -> bool
 
-val lookup_field_in_decls : Modl.t -> Decls.t -> 'a Field_sort.t -> string -> 'a
-
 val singleton : Typ.t -> Kind.t -> Kind.t
 
 val subsigture : Context.t -> Sigture.t -> Sigture.t -> bool
