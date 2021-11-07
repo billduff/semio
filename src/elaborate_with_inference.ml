@@ -26,7 +26,33 @@ let rec decls_of_list = function
   | decl :: decls -> T.Decls.cons (decl, decls_of_list decls)
 ;;
 
-module Invariant_checks = struct
+(* CR wduff: Move the calls to normal typechecking stuff in here as well when they are only for
+   invariant checking? *)
+module type Invariant_checks = sig
+  val fixity_context_matches_elab_context_creator
+    : Context.Fixity.t -> Context.Elab_creator.t -> unit
+
+  val fixity_sigture_matches_elab_sigture
+    : Context.Fixity_sigture.t -> Context.Elab_sigture.t -> unit
+
+  val elab_context_creator_type_checks
+    : Context.Internal.t -> Context.Elab_creator.t -> T.Sigture.t -> unit
+
+  val elab_sigture_matches_sigture
+    : Context.Internal.t -> Context.Elab_sigture.t -> T.Sigture.t -> unit
+
+  val context_well_formed : Context.t -> unit
+end
+
+module Invariant_checks_off : Invariant_checks = struct
+  let fixity_context_matches_elab_context_creator _ _ = ()
+  let fixity_sigture_matches_elab_sigture _ _ = ()
+  let elab_context_creator_type_checks _ _ _ = ()
+  let elab_sigture_matches_sigture _ _ _ = ()
+  let context_well_formed _ = ()
+end
+
+module Invariant_checks_on : Invariant_checks = struct
   let maps_match data_matches map1 map2 =
     List.iter2_exn
       (Map.to_alist map1)
@@ -167,6 +193,8 @@ module Invariant_checks = struct
     end;
   ;;
 end
+
+module Invariant_checks = Invariant_checks_off
 
 let rec elab_sigture_of_foo_sigture = function
   | Context.Foo_sigture.Body foo_context ->
