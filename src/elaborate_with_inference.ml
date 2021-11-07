@@ -10,6 +10,8 @@ module SCC = Graph.Components.Make (Dependence)
 type before = U.Defn.t list
 type after = T.Term.t
 
+let debug = false
+
 let singleton_decls decl =
   T.Decls.cons (decl, T.Decls.end_ ())
 ;;
@@ -26,33 +28,7 @@ let rec decls_of_list = function
   | decl :: decls -> T.Decls.cons (decl, decls_of_list decls)
 ;;
 
-(* CR wduff: Move the calls to normal typechecking stuff in here as well when they are only for
-   invariant checking? *)
-module type Invariant_checks = sig
-  val fixity_context_matches_elab_context_creator
-    : Context.Fixity.t -> Context.Elab_creator.t -> unit
-
-  val fixity_sigture_matches_elab_sigture
-    : Context.Fixity_sigture.t -> Context.Elab_sigture.t -> unit
-
-  val elab_context_creator_type_checks
-    : Context.Internal.t -> Context.Elab_creator.t -> T.Sigture.t -> unit
-
-  val elab_sigture_matches_sigture
-    : Context.Internal.t -> Context.Elab_sigture.t -> T.Sigture.t -> unit
-
-  val context_well_formed : Context.t -> unit
-end
-
-module Invariant_checks_off : Invariant_checks = struct
-  let fixity_context_matches_elab_context_creator _ _ = ()
-  let fixity_sigture_matches_elab_sigture _ _ = ()
-  let elab_context_creator_type_checks _ _ _ = ()
-  let elab_sigture_matches_sigture _ _ _ = ()
-  let context_well_formed _ = ()
-end
-
-module Invariant_checks_on : Invariant_checks = struct
+module Invariant_checks = struct
   let maps_match data_matches map1 map2 =
     List.iter2_exn
       (Map.to_alist map1)
@@ -193,8 +169,6 @@ module Invariant_checks_on : Invariant_checks = struct
     end;
   ;;
 end
-
-module Invariant_checks = Invariant_checks_off
 
 let rec elab_sigture_of_foo_sigture = function
   | Context.Foo_sigture.Body foo_context ->
@@ -396,15 +370,19 @@ let rec check_typ'
   then typ'
   else failwith "???replace with legit error message."
 
-and check_typ context typ kind =
-  Invariant_checks.context_well_formed context;
+and check_typ (context : Context.t) typ kind =
+  if debug then begin
+    Invariant_checks.context_well_formed context;
   (* CR wduff: assert (Type_checker.kind_ok kind) *)
+  end;
   let typ' = check_typ' context typ kind in
-  assert
-    (Type_checker.subkind
-       context.internal
-       (Type_checker.check_typ context.internal typ')
-       kind);
+  if debug then begin
+    assert
+      (Type_checker.subkind
+         context.internal
+         (Type_checker.check_typ context.internal typ')
+         kind)
+  end;
   typ'
 
 (* Preconditions:
@@ -492,14 +470,18 @@ and synth_typ' (context : Context.t) (typ : U.Typ.t) : T.Typ.t * T.Kind.t =
     (T.Typ.forall ((arg_var, T.Kind.typ ()), result'), (T.Kind.typ ()))
 
 and synth_typ context typ =
-  Invariant_checks.context_well_formed context;
+  if debug then begin
+    Invariant_checks.context_well_formed context
+  end;
   let (typ', kind) = synth_typ' context typ in
-  (* CR wduff: assert (Type_checker.kind_ok kind) *)
-  assert
-    (Type_checker.subkind
-       context.internal
-       (Type_checker.check_typ context.internal typ')
-       kind);
+  if debug then begin
+    (* CR wduff: assert (Type_checker.kind_ok kind) *)
+    assert
+      (Type_checker.subkind
+         context.internal
+         (Type_checker.check_typ context.internal typ')
+         kind);
+  end;
   (typ', kind)
 
 (* Preconditions:
@@ -525,34 +507,38 @@ and check_tag'
   else failwith "???replace with legit error message"
 
 and check_tag context tag typ1 typ2_opt =
-  Invariant_checks.context_well_formed context;
-  assert
-    (Type_checker.subkind
-       context.internal
-       (Type_checker.check_typ context.internal typ1)
-       (T.Kind.typ ()));
-  assert
-    (match typ2_opt with
-     | None -> true
-     | Some typ2 ->
-       Type_checker.subkind
+  if debug then begin
+    Invariant_checks.context_well_formed context;
+    assert
+      (Type_checker.subkind
          context.internal
-         (Type_checker.check_typ context.internal typ2)
+         (Type_checker.check_typ context.internal typ1)
          (T.Kind.typ ()));
+    assert
+      (match typ2_opt with
+       | None -> true
+       | Some typ2 ->
+         Type_checker.subkind
+           context.internal
+           (Type_checker.check_typ context.internal typ2)
+           (T.Kind.typ ()))
+  end;
   let tag' = check_tag' context tag typ1 typ2_opt in
   let (typ1', typ2_opt') = Type_checker.check_tag context.internal tag' in
-  assert
-    (Type_checker.typ_equiv context.internal typ1 typ1' (T.Kind.typ ()));
-  assert
-    (Option.equal
-       (fun typ2 typ2' ->
-          Type_checker.typ_equiv
-            context.internal
-            typ2
-            typ2'
-            (T.Kind.typ ()))
-       typ2_opt
-       typ2_opt');
+  if debug then begin
+    assert
+      (Type_checker.typ_equiv context.internal typ1 typ1' (T.Kind.typ ()));
+    assert
+      (Option.equal
+         (fun typ2 typ2' ->
+            Type_checker.typ_equiv
+              context.internal
+              typ2
+              typ2'
+              (T.Kind.typ ()))
+         typ2_opt
+         typ2_opt')
+  end;
   tag'
 
 (* Preconditions:
@@ -612,49 +598,53 @@ and synth_tag' (context : Context.t) (tag : U.Tag.t) : T.Tag.t * T.Typ.t * T.Typ
     else failwith "???replace with legit error message."
 
 and synth_tag context tag =
-  Invariant_checks.context_well_formed context;
-  let (tag', typ1, typ2_opt) = synth_tag' context tag in
-  assert
-    (Type_checker.subkind
-       context.internal
-       (Type_checker.check_typ context.internal typ1)
-       (T.Kind.typ ()));
-  assert
-    (match typ2_opt with
-     | None -> true
-     | Some typ2 ->
-       Type_checker.subkind
-         context.internal
-         (Type_checker.check_typ context.internal typ2)
-         (T.Kind.typ ()));
-  let (typ1', typ2_opt') = Type_checker.check_tag context.internal tag' in
-  begin
-    match
-      Type_checker.typ_equiv
-        context.internal
-        typ1'
-        typ1
-        (T.Kind.typ ())
-    with
-    | true -> ()
-    | false ->
-      raise_s
-        [%message
-          "typ of tag doesn't match returned typ"
-            (context.internal : Context.Internal.t)
-            (typ1 : T.Typ.t)
-            (typ1' : T.Typ.t)]
+  if debug then begin
+    Invariant_checks.context_well_formed context
   end;
-  assert
-    (Option.equal
-       (fun typ2' typ2 ->
-          Type_checker.typ_equiv
-            context.internal
-            typ2'
-            typ2
-            (T.Kind.typ ()))
-       typ2_opt'
-       typ2_opt);
+  let (tag', typ1, typ2_opt) = synth_tag' context tag in
+  if debug then begin
+    assert
+      (Type_checker.subkind
+         context.internal
+         (Type_checker.check_typ context.internal typ1)
+         (T.Kind.typ ()));
+    assert
+      (match typ2_opt with
+       | None -> true
+       | Some typ2 ->
+         Type_checker.subkind
+           context.internal
+           (Type_checker.check_typ context.internal typ2)
+           (T.Kind.typ ()));
+    let (typ1', typ2_opt') = Type_checker.check_tag context.internal tag' in
+    begin
+      match
+        Type_checker.typ_equiv
+          context.internal
+          typ1'
+          typ1
+          (T.Kind.typ ())
+      with
+      | true -> ()
+      | false ->
+        raise_s
+          [%message
+            "typ of tag doesn't match returned typ"
+              (context.internal : Context.Internal.t)
+              (typ1 : T.Typ.t)
+              (typ1' : T.Typ.t)]
+    end;
+    assert
+      (Option.equal
+         (fun typ2' typ2 ->
+            Type_checker.typ_equiv
+              context.internal
+              typ2'
+              typ2
+              (T.Kind.typ ()))
+         typ2_opt'
+         typ2_opt)
+  end;
   (tag', typ1, typ2_opt)
 
 (* Preconditions:
@@ -686,14 +676,18 @@ and check_pat'
   end
 
 and check_pat context pat typ =
-  Invariant_checks.context_well_formed context;
-  assert
-    (Type_checker.subkind
-       context.internal
-       (Type_checker.check_typ context.internal typ)
-       (T.Kind.typ ()));
+  if debug then begin
+    Invariant_checks.context_well_formed context;
+    assert
+      (Type_checker.subkind
+         context.internal
+         (Type_checker.check_typ context.internal typ)
+         (T.Kind.typ ()))
+  end;
   let (pat_elab_context, context', pat') = check_pat' context pat typ in
-  (* CR wduff: assert stuff *)
+  if debug then begin
+    (* CR wduff: assert stuff *)
+  end;
   (pat_elab_context, context', pat')
 
 (* Preconditions:
@@ -772,14 +766,18 @@ and synth_pat' (context : Context.t) (pat : U.Pat.t)
      typ')
 
 and synth_pat context pat =
-  Invariant_checks.context_well_formed context;
+  if debug then begin
+    Invariant_checks.context_well_formed context
+  end;
   let (pat_elab_context, context', pat', typ) = synth_pat' context pat in
-  assert
-    (Type_checker.subkind
-       context.internal
-       (Type_checker.check_typ context.internal typ)
-       (T.Kind.typ ()));
-  (* CR wduff: assert more stuff *)
+  if debug then begin
+    assert
+      (Type_checker.subkind
+         context.internal
+         (Type_checker.check_typ context.internal typ)
+         (T.Kind.typ ()));
+    (* CR wduff: assert more stuff *)
+  end;
   (pat_elab_context, context', pat', typ)
 
 (* Preconditions:
@@ -800,19 +798,23 @@ and check_term' context term typ =
   end
 
 and check_term context term typ =
-  Invariant_checks.context_well_formed context;
-  assert
-    (Type_checker.subkind
-       context.internal
-       (Type_checker.check_typ context.internal typ)
-       (T.Kind.typ ()));
+  if debug then begin
+    Invariant_checks.context_well_formed context;
+    assert
+      (Type_checker.subkind
+         context.internal
+         (Type_checker.check_typ context.internal typ)
+         (T.Kind.typ ()));
+  end;
   let term' = check_term' context term typ in
-  assert
-    (Type_checker.typ_equiv
-       context.internal
-       (Type_checker.check_term context.internal term')
-       typ
-       (T.Kind.typ ()));
+  if debug then begin
+    assert
+      (Type_checker.typ_equiv
+         context.internal
+         (Type_checker.check_term context.internal term')
+         typ
+         (T.Kind.typ ()))
+  end;
   term'
 
 and specialize context (term, typ) =
@@ -1023,31 +1025,35 @@ and synth_term' (context : Context.t) (term : U.Term.t) : T.Term.t * T.Typ.t =
     (T.Term.ascribe (term', typ'), typ')
 
 and synth_term context term =
-  Invariant_checks.context_well_formed context;
+  if debug then begin
+    Invariant_checks.context_well_formed context;
+  end;
   let (term', typ) = specialize context.internal (synth_term' context term) in
-  assert
-    (Type_checker.subkind
-       context.internal
-       (Type_checker.check_typ context.internal typ)
-       (T.Kind.typ ()));
-  begin
-    match
-      Type_checker.typ_equiv
-        context.internal
-        (Type_checker.check_term context.internal term')
-        typ
-        (T.Kind.typ ())
-    with
-    | true -> ()
-    | false | exception _ ->
-      raise_s
-        [%message
-          [%here]
-            (context : Context.t)
-            (term : U.Term.t)
-            (term' : T.Term.t)
-            (typ : T.Typ.t)
-            (Type_checker.check_term context.internal term': T.Typ.t)]
+  if debug then begin
+    assert
+      (Type_checker.subkind
+         context.internal
+         (Type_checker.check_typ context.internal typ)
+         (T.Kind.typ ()));
+    begin
+      match
+        Type_checker.typ_equiv
+          context.internal
+          (Type_checker.check_term context.internal term')
+          typ
+          (T.Kind.typ ())
+      with
+      | true -> ()
+      | false | exception _ ->
+        raise_s
+          [%message
+            [%here]
+              (context : Context.t)
+              (term : U.Term.t)
+              (term' : T.Term.t)
+              (typ : T.Typ.t)
+              (Type_checker.check_term context.internal term': T.Typ.t)]
+    end;
   end;
   (term', typ)
 
@@ -1070,13 +1076,17 @@ and check_modl'
   else failwith "???replace with legit error message."
 
 and check_modl context modl purity sigture foo_sigture =
-  Invariant_checks.context_well_formed context;
-  (* CR wduff: assert (sigture_ok context sigture); *)
-  (* CR wduff: (pre/post)-conditions about foo_sigture? *)
+  if debug then begin
+    Invariant_checks.context_well_formed context;
+    (* CR wduff: assert (sigture_ok context sigture); *)
+    (* CR wduff: (pre/post)-conditions about foo_sigture? *)
+  end;
   let modl' = check_modl' context modl purity sigture foo_sigture in
-  let (purity', sigture') = Type_checker.check_modl context.internal modl' in
-  assert (Purity.(<=) purity' purity);
-  assert (Type_checker.subsigture context.internal sigture' sigture);
+  if debug then begin
+    let (purity', sigture') = Type_checker.check_modl context.internal modl' in
+    assert (Purity.(<=) purity' purity);
+    assert (Type_checker.subsigture context.internal sigture' sigture)
+  end;
   modl'
 
 (* Preconditions:
@@ -1158,11 +1168,13 @@ and synth_modl' (context : Context.t) (modl : U.Modl.t)
 
 and synth_modl (context : Context.t) (modl : U.Modl.t)
   : T.Modl.t * Purity.t * T.Sigture.t * Context.Elab_sigture.t * Context.Fixity_sigture.t =
-  Invariant_checks.context_well_formed context;
+  if debug then begin
+    Invariant_checks.context_well_formed context;
+  end;
   let (modl', purity, sigture, elab_sigture, fixity_sigture) =
     synth_modl' context modl
   in
-  begin
+  if debug then begin
     try
       Type_checker.check_sigture context.internal sigture;
       Invariant_checks.fixity_sigture_matches_elab_sigture fixity_sigture elab_sigture;
@@ -1827,11 +1839,13 @@ and elab_defns' (context : Context.t) defns
    fixity_context)
 
 and elab_defns context defns =
-  Invariant_checks.context_well_formed context;
+  if debug then begin
+    Invariant_checks.context_well_formed context
+  end;
   let (modl, purity, sigture, elab_context_creator, fixity_context) =
     elab_defns' context defns
   in
-  begin
+  if debug then begin
     try
       Type_checker.check_sigture context.internal sigture;
       Invariant_checks.fixity_context_matches_elab_context_creator fixity_context elab_context_creator;
@@ -1916,14 +1930,18 @@ and elab_rec_defns' (context : Context.t) defns
   end
 
 and elab_rec_defns context defns =
-  Invariant_checks.context_well_formed context;
+  if debug then begin
+    Invariant_checks.context_well_formed context
+  end;
   let (modl, purity, sigture, elab_context_creator, fixity_context) =
     elab_rec_defns' context defns
   in
-  (* CR wduff: Other post-conditions? *)
-  let (purity', sigture') = Type_checker.check_modl context.internal modl in
-  assert (Purity.(<=) purity' purity);
-  assert (Type_checker.subsigture context.internal sigture' sigture);
+  if debug then begin
+    (* CR wduff: Other post-conditions? *)
+    let (purity', sigture') = Type_checker.check_modl context.internal modl in
+    assert (Purity.(<=) purity' purity);
+    assert (Type_checker.subsigture context.internal sigture' sigture)
+  end;
   (modl, purity, sigture, elab_context_creator, fixity_context)
 
 (* CR wduff: Reduce code duplication between [elab_rec_defn] and [elab_defn]. *)
@@ -2120,12 +2138,16 @@ and elab_rec_defn' context (rev_modl_fields, wrap_decls) (defn : U.Defn.t) =
     failwith "???replace with legit error message."
 
 and elab_rec_defn context (rev_modl_fields, wrap_decls) defn =
-  Invariant_checks.context_well_formed context;
-  (* CR wduff: Other pre-conditions? *)
+  if debug then begin
+    Invariant_checks.context_well_formed context
+    (* CR wduff: Other pre-conditions? *)
+  end;
   let (rev_modl_fields', wrap_decls') =
     elab_rec_defn' context (rev_modl_fields, wrap_decls) defn
   in
-  (* CR wduff: post-conditions? *)
+  if debug then begin
+    (* CR wduff: post-conditions? *)
+  end;
   (rev_modl_fields', wrap_decls')
 
 and elab_tag_decl context wrap_decls foo_context name typ1 typ2_opt =
