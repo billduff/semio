@@ -1,4 +1,8 @@
-module F (T : Typed) = mod
+module F (T : Typed) : Dynamics = mod
+  (* CR wduff: Instead of having this here, we should have [with module Typed := T] above once
+     that's supported. *)
+  module Typed = T
+
   (* CR wduff: Hack until exceptions exist. *)
   fun failwith s = let val {} = print s in failwith s end
 
