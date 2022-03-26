@@ -36,6 +36,7 @@ let command =
     [%map_open
       let filenames = anon (sequence ("FILENAME" %: Filename.arg_type))
       in
+      Unix.sleep 10;
       interpret ~filenames
     ]
 ;;
