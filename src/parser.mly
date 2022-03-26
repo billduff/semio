@@ -24,6 +24,48 @@
 %type <Lexing.position * string> ident
 %type <Lexing.position * string> bigident
 
+%type <string list> rev_path
+%type <Unbound.Modl.untagged> apmodl
+%type <Unbound.Pat.untagged> appat
+%type <Unbound.Term.t list> apterm
+%type <Unbound.Typ.t list> aptyp
+%type <Unbound.Decl.t> decl
+%type <Unbound.Decl.t list> decls
+%type <Unbound.Defn.t list> defns
+%type <Unbound.Pat.t * Unbound.Term.t> matchcase
+%type <(Unbound.Pat.t * Unbound.Term.t) list> matchcases
+%type <Unbound.Modl.t> modl
+%type <Unbound.Modl.t * string> modlproj
+%type <Unbound.Modl.t * string> modlprojbig
+%type <Unbound.Pat.t> pat
+%type <string list * string> path
+%type <(string * Unbound.Typ.t) list> prodtypbody
+%type <[`Unlabeled of Unbound.Pat.t | `Labeled of string * Unbound.Pat.t] list> recordbody(pat)
+%type <[`Unlabeled of Unbound.Term.t | `Labeled of string * Unbound.Term.t] list> recordbody(term)
+%type <Unbound.Sigture.t> sigture
+%type <Unbound.Modl.untagged> simpmodl
+%type <Unbound.Pat.untagged> simppat
+%type <Unbound.Pat.t list> simppats
+%type <Unbound.Term.untagged> simpterm
+%type <Unbound.Typ.untagged> simptyp
+%type <string * Unbound.Typ.t option> sumtypbranch
+%type <(string * Unbound.Typ.t option) list> sumtypdefn
+%type <Unbound.Tag.t> tag
+%type <string list> typargs
+%type <[`Alias of Unbound.Typ.t | `Prod of (string * Unbound.Typ.t) list | `Sum of (string * Unbound.Typ.t option) list]> typdefnbody
+%type <string * Unbound.Typ.t> typfield
+%type <Unbound.Decl.untagged> untagged_decl
+%type <Unbound.Defn.untagged> untagged_defn
+%type <Unbound.Modl.untagged> untagged_modl
+%type <Unbound.Modl.untagged * string> untagged_modlproj
+%type <Unbound.Modl.untagged * string> untagged_modlprojbig
+%type <Unbound.Pat.untagged> untagged_pat
+%type <Unbound.Sigture.untagged> untagged_sigture
+%type <Unbound.Tag.untagged> untagged_tag
+%type <Unbound.Term.untagged> untagged_term
+%type <Unbound.Typ.untagged> untagged_typ
+
+
 %start program
 %token TYPE LET IN FN MATCH WITH OF LPAREN RPAREN LBRACE RBRACE END VAL FUN INFIX INCLUDE MODULE SIGNATURE SIG MOD PAT BUILT_IN
 %token EQUAL EQARROW ARROW BAR COLON COMMA DOT WILD EOF
@@ -56,12 +98,12 @@ modlproj: untagged_modlproj {
 
 path:
   | Name {([], $1)}
-  | Rev_path DOT Name {(List.rev $1, $3)}
+  | rev_path DOT Name {(List.rev $1, $3)}
 ;
 
-Rev_path:
+rev_path:
   | NAME {[$1]}
-  | Rev_path DOT NAME {$3 :: $1}
+  | rev_path DOT NAME {$3 :: $1}
 ;
 
 untagged_modlprojbig:
