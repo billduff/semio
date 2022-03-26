@@ -208,23 +208,29 @@ let rec uvars_in_sigture sigture =
   | Rec (_modl_var, sigture) -> uvars_in_sigture sigture
 
 and uvars_in_decls decls =
-  match Decls.out decls with
-  | End -> Uvar_set.empty
-  | Cons ((_, decl), rest) ->
-    let decl_uvars =
-      match decl with
-      | Decl.Typ (_, kind) -> uvars_in_kind kind
-      | Decl.Tag (typ1, typ2_opt) ->
-        let typ2_uvars =
-          match typ2_opt with
-          | None -> Uvar_set.empty
-          | Some typ2 -> uvars_in_typ typ2
-        in
-        Set.union (uvars_in_typ typ1) typ2_uvars
-      | Decl.Val typ -> uvars_in_typ typ
-      | Decl.Modl (_, sigture) -> uvars_in_sigture sigture
-    in
-    Set.union decl_uvars (uvars_in_decls rest)
+  (* We have an inner loop so that our list iteration is tail-recursive. We don't care about the
+     overall process being tail recursive, because it will be proportional to the depth of the
+     code, whereas this loop is proportionaly to the _length_ of the code. *)
+  let rec loop decls acc =
+    match Decls.out decls with
+    | End -> acc
+    | Cons ((_, decl), rest) ->
+      let decl_uvars =
+        match decl with
+        | Decl.Typ (_, kind) -> uvars_in_kind kind
+        | Decl.Tag (typ1, typ2_opt) ->
+          let typ2_uvars =
+            match typ2_opt with
+            | None -> Uvar_set.empty
+            | Some typ2 -> uvars_in_typ typ2
+          in
+          Set.union (uvars_in_typ typ1) typ2_uvars
+        | Decl.Val typ -> uvars_in_typ typ
+        | Decl.Modl (_, sigture) -> uvars_in_sigture sigture
+      in
+      loop rest (Set.union acc decl_uvars)
+  in
+  loop decls Uvar_set.empty
 
 and uvars_in_kind kind =
   match Kind.out kind with
