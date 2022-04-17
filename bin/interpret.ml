@@ -37,9 +37,7 @@ let command =
       let filenames = anon (sequence ("FILENAME" %: Filename.arg_type))
       in
       (fun () ->
-         while true do
-           interpret ~filenames ()
-         done
+         interpret ~filenames ()
       )
     ]
 ;;
