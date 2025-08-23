@@ -1,0 +1,77 @@
+uint32 : type 4
+uint64 : type 8
+ptr A : type 8, ptr n if A : type n
+A|B : type p, ptr (m + n) if A : type p, ptr m and B : type p, ptr n
+A*B : type (m * n) if A : type n and B : type n
+fn t : K. A : K -> K' if t : K |- A : K'
+A B : K' if A : K -> K' and B : K
+inl A : K1 + K2 if A : K1
+inr A : K1 + K2 if A : K2
+A = B : type 0 if A : K and B : K
+exists t : K. A : type n if t : K |- A : type n
+forall t : K. A : type n if t : K |- A : type n
+
+fn t : [ `foo | `bar | `baz ]. [ `Foo of t = `foo | `Bar of t = `bar | `Baz of t = `baz ]
+: [ `foo | `bar | `baz ] -> type 1
+
+fn t : [ `foo | `bar | `baz ].
+  case t of
+  | `foo => A
+  | `bar => B
+  | `baz => C
+: [ `foo | `bar | `baz ] -> K if A : K and B : K and C : K
+
+exists t : [ `foo | `bar | `baz ].
+  case t of
+  | `foo => A
+  | `bar => B
+  | `baz => C
+: K if A : K and B : K and C : K
+-- This is fine, just not useful because we don't know which case was taken.
+
+-- Instead, we can do this, storing the tag at runtime, but therefore being able to inspect it and
+-- recover the information.
+exists t : [ `foo | `bar | `baz ].
+  [ `Foo of t = `foo | `Bar of t = `bar | `Baz of t = `baz ] -- This can't use "case" because we can't resolve the case until we know what t is.
+  *
+  case t of
+  | `foo => A
+  | `bar => B
+  | `baz => C
+: type (1 * n) if A : type n and B : type n and C : type n
+-- So this is a normal sum type with detached tag and value.
+
+-- To get back to something like the usual ocaml thing, we can do:
+exists t : [ `foo | `bar | `baz ].
+  ptr [ `Foo of t = `foo | `Bar of t = `bar | `Baz of t = `baz ] -- This can't use "case" because we can't resolve the case until we know what t is.
+  |
+  (case t of
+   | `foo => A
+   | `bar => B
+   | `baz => C) -- this could also plausibly be (t = `foo * A) U (t = `bar * B) U (t = `baz * C), if we have some compile-time way to dispose of the invalid cases.
+: type p, ptr (1 + n) if A : type p, ptr n and B : type p, ptr n and C : type p, ptr n
+-- We still need a way to package the tag with other header stuff and have the pointer value be
+-- after the header word.
+-- Hrm, this doesn't let the layout vary...
+
+let t, (tag, value) = (e : ^) in
+match tag with
+| `Foo Refl => f (value : A)
+| `Bar Refl => g (value : B)
+| `Baz Refl => h (value : C)
+
+layout repeat n l :=
+  ...
+
+layout gc_value :=
+  [ `Ptr of ptr bits63 (exists n : length_bits 54. bits 2 | bytes 1 | repeat n gc_value) ~conv:(fun p -> p*2 - 1)
+  | `Imm of bits63
+  ]
+-- Also the tag is at the _end_...
+-- This is really starting to feel like scribe...
+
+local layout ll := bits n | bytes n | ptr ll ml | ll * ll (* do we distinguish floats here? *)
+memory layout ml := bits n | bytes n | ptr ml ml' | ml|ml | exists n : length_bits m. ml | repeat n ml
+
+maybe what we want here is scribe, but with the restriction that the total length of the current
+chunk be knowable from reads of static offsets within the chunk.

@@ -4,6 +4,7 @@ open! Import
 open Parser
 }
 
+(* CR wduff: Look at the PFPL examples lexer for inspiration. *)
 let whitespace = [' ' '\t']
 let newline = '\r' | '\n' | "\r\n"
 let digit = ['0'-'9']

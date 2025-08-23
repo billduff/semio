@@ -22,3 +22,13 @@
   (:spec typed.abt))
  (action
   (run abbot ocaml -max-line-length 99 -output-file typed_functor %{spec})))
+
+(rule
+ (targets
+  core_ir_functor_intf.ml
+  core_ir_functor.mli
+  core_ir_functor.ml)
+ (deps
+  (:spec core_ir.abt))
+ (action
+  (run abbot ocaml -max-line-length 99 -output-file core_ir_functor %{spec})))

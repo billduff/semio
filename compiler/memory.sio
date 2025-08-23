@@ -1,0 +1,57 @@
+module Memory : Memory = mod
+  val mmap_c = external "C" "mmap" : { addr : void*, length : nat, prot : int, flags : int, fd : int, offset : int } -> void* end
+
+  (* CR wduff: Add other options. *)
+  (* CR wduff: Consider failure cases. *)
+  val mmap { length } =
+    mmap_c
+     { addr = NULL
+     , length = length
+     , prot = PROT_READ | PROT_WRITE
+     , flags = MAP_PRIVATE | MAP_ANONYMOUS
+     , fd : -1
+     , offset = 0
+     }
+
+  (* CR wduff:
+     munmap can fail:
+     - if addr is misaligned or len = 0, we'll get EINVAL
+     - if we are at the max map count and this unmap would split one region into two, we'll get ENOMEM  *)
+  val munmap_c = external "C" "munmap" : addr:void* -> len:nat -> int end
+end
+
+abstraction layers:
+- raw memory (provides nice, but complete interfaces to sbrk, mmap, munmap)
+- regions (uses mmap to allocate known-disjoint regions, needs to own the raw memory)
+(* How does the below deal with needing more memory? Maybe we have a small wrapper around heap to
+   make it growable and or to make chains of heaps? *)
+- heap (provides box type for single-object allocations within a region, needs to own the one region)
+- refcount (uses a heap to provide shareable, dag-shaped objects)
+- gc (uses a heap to provide shareable objects, incl cycles)
+
+A record type defines the types and "order" of the fields, but the context in which that record type
+is used controls what that order is used for.
+- For a plain unboxed record, the order and calling convention together control the registers and
+  stack positions each field is passed in when a function is called. Within a function, the compiler
+  can keep track of the layout however it wants. Maybe we can allow re-orderings of unboxed record
+  types to be sub-types of each other, since the transformation between them is the identity (it
+  just requires the compiler to reinterpret the existing layout as a different ordering), though
+  that feels a little messy since e.g., the identity *function* is not a map from one the other.
+- For a record in a box, the ordering controls the layout order in memory. This includes records as
+  (unboxed) array elements.
+
+The following three things are distinct:
+1. A collection of registers and/or stack locations, where the compiler keeps track of which
+   registers and locations. Despite the layout being arbitrary in any local scope, we can demand the
+   order the different pieces are passed to a function be well defined, so that
+2. a pointer to several things allocated (contiguously?) on the stack at well-known offsets
+3. a pointer to several things allocated (contiguously?) on the heap at well-known offsets
+4. a pointer to an array of things each of which is the same size.
+
+1 is unboxed
+2 and 3 are boxed
+
+2 and 3 can be treated the same in many contexts, so they ought to both at least be convertible to
+some single type.
+
+Should the type of 2/3 be something like "box 1"?

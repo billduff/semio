@@ -100,7 +100,7 @@ end loop
 where p is a pattern for the loop state, and e is the initial value.
 
 All tail positions of e' must be either "repeat e" or "exit e" (or continue, break or something
-else...). This is a little more restricted than the function version of ruf, but that let's us
+else...). This is a little more restricted than the function version of ruf, but that lets us
 provide an efficient implementation. Maybe we can do something fancy in the type system to allow a
 tailcall to a function that itself satisfies this property? That might be doable with modes.
 

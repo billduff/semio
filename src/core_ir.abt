@@ -1,0 +1,88 @@
+(* CR wduff: Use more abstract types. E.g. a non-negative length type, and an abstract label type.
+
+   Maybe the atomic layouts should be a functor param as well? *)
+
+(* CR wduff: Missing things:
+   - values for box+array
+
+   - substructural features
+   - mutation
+   - row typing?
+   - data kinds? *)
+
+abt label
+abt heap_loc
+
+sort length =
+ | Static of int
+
+abt static_layout =
+ | Normal_8
+ | Normal_16
+ | Normal_32
+ | Normal_64
+ | Float_32
+ | Float_64
+ | Multi of static_layout list
+ | Array of length * static_layout
+
+abt dynamic_layout =
+ | Static of static_layout
+ | Multi of static_layout list * dynamic_layout
+ | Exists_len of length binding . dynamic_layout
+
+abt kind =
+ | Arrow of kind * kind
+ | Typ of dynamic_layout
+
+sort typ =
+ | Fun of typ binding * kind . typ
+ | Ap of typ * typ
+ | Arrow of typ * typ
+ | Pos_prod of (label * typ) list
+ | Neg_prod of (label * typ) list
+ | Sum of dynamic_layout * (label * typ) list
+ | Rec of (typ binding * dynamic_layout) . typ
+ | Corec of typ binding . typ
+ | For_all of typ binding * kind . typ
+ | Exists of typ binding * kind . typ
+ | Exists_len of length binding . typ
+ | Uninit of static_layout
+ | Array of length * typ
+ | Box of typ
+
+abt typ1 =
+ | Bind of typ binding * typ
+
+abt value_pat =
+ | Var of term binding * typ
+ | Wild of typ
+ | Record of (label * value_pat) list * label list
+ | Inj of label * value_pat * (label * typ) list
+ | Roll of value_pat * (typ1 * dynamic_layout)
+ | Pack of (typ binding * kind) * value_pat
+
+abt elim_pat =
+ | Ap of value_pat
+ | Proj of label * (label * typ) list
+ | Unroll of typ1
+ | Ap_typ of typ binding * kind
+
+sort term =
+ | Record of (label * term) list * label list
+ | Inj of label * term * (label * typ) list
+ | Roll of term * ((typ binding * dynamic_layout) . typ)
+ | Pack of typ * term * (typ binding . typ)
+ | Match_value of term * (value_pat . term) list * typ
+ | Match_elim of (elim_pat list . term) list * typ
+ | Ap of term * term
+ | Proj of term * label
+ | Unroll of term
+ | Ap_typ of term * typ
+ | Uninit of static_layout
+ | Box of term
+ | Heap_loc of heap_loc
+ | Unbox of term
+ | Fix of term binding * typ . term
+ (* CR wduff: Hrm. Can we let-bind negative values too? *)
+ | Let of value_pat * term . term
