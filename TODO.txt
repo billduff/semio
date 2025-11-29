@@ -106,3 +106,9 @@ tailcall to a function that itself satisfies this property? That might be doable
 
 Maybe "init" can replace "with", to emphasize that e is merely the initial value of p, and to
 avoid any other associations folks might have with "with".
+
+Think about the example of a compiler optimization that removes allocations. Refinements give us a
+nice way of dealing with that: We can require that the user prove that their allocator's side
+effects are benign w.r.t. the optimizations the compiler wants to do. But what if the allocator
+prints whenever you allocate in debug mode? This suggests it would be useful to have a notion of an
+effect that may happen, but is not required to by the refinement interface of the library.
